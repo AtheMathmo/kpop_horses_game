@@ -8,9 +8,11 @@ use std::fs;
 use std::path::Path;
 
 use face_gen::{
-    ALL_EYE_STYLES, ALL_FACE_SHAPES, ALL_HAIR_STYLES, ALL_MOUTH_STYLES, ALL_SKIN_TONES, CANVAS_H,
-    CANVAS_W, FaceConfig, FaceLayer, generate_component_svg, generate_face_svg, generate_layer_svg,
-    has_front_layer, rasterize_svg_to_png,
+    ALL_COAT_COLOURS, ALL_COAT_STYLES, ALL_EYE_STYLES, ALL_FACE_SHAPES, ALL_HAIR_STYLES,
+    ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SKIN_TONES, ALL_TACK_STYLES, CANVAS_H, CANVAS_W,
+    FaceConfig, FaceLayer, HORSE_H, HORSE_W, HorseConfig, HorseLayer, generate_component_svg,
+    generate_face_svg, generate_horse_layer_svg, generate_layer_svg, has_markings, has_tack,
+    rasterize_svg_to_png,
 };
 
 const OUTPUT_DIR: &str = "output";
@@ -30,7 +32,17 @@ fn main() {
             .unwrap_or(&default_out);
         let base = Path::new(out_dir);
         export_layer_pngs(base);
-        println!("Done! Layers exported to {out_dir}/");
+
+        let horse_out = "assets/horses".to_string();
+        let horse_dir = args
+            .iter()
+            .position(|a| a == "--horse-out")
+            .and_then(|i| args.get(i + 1))
+            .unwrap_or(&horse_out);
+        let horse_base = Path::new(horse_dir);
+        export_horse_layer_pngs(horse_base);
+
+        println!("Done! Layers exported to {out_dir}/ and {horse_dir}/");
         return;
     }
 
@@ -276,13 +288,10 @@ fn export_layer_pngs(base: &Path) {
         println!("  mouth/{}", style.label());
     }
 
-    // Hair front: only styles that have a front layer
+    // Hair front: all styles (empty ones produce a transparent PNG)
     let dir = base.join("hair_front");
     fs::create_dir_all(&dir).expect("create hair_front dir");
     for style in ALL_HAIR_STYLES {
-        if !has_front_layer(*style) {
-            continue;
-        }
         let config = FaceConfig {
             hair: *style,
             ..default_config
@@ -290,6 +299,75 @@ fn export_layer_pngs(base: &Path) {
         let svg = generate_layer_svg(&config, FaceLayer::HairFront);
         write_layer_png(&dir, style.label(), &svg, png_w, png_h);
         println!("  hair_front/{}", style.label());
+    }
+}
+
+/// Export per-component horse layer PNGs for use as Bevy sprite assets.
+fn export_horse_layer_pngs(base: &Path) {
+    let default_config = HorseConfig::default();
+    let png_w = HORSE_W as u32 * PNG_SCALE;
+    let png_h = HORSE_H as u32 * PNG_SCALE;
+
+    // Body: one per CoatColour
+    let dir = base.join("body");
+    fs::create_dir_all(&dir).expect("create horse body dir");
+    for colour in ALL_COAT_COLOURS {
+        let config = HorseConfig {
+            coat_colour: *colour,
+            ..default_config
+        };
+        let svg = generate_horse_layer_svg(&config, HorseLayer::Body);
+        write_layer_png(&dir, colour.label(), &svg, png_w, png_h);
+        println!("  horse/body/{}", colour.label());
+    }
+
+    // Markings: one per (CoatStyle, CoatColour), skip Plain
+    let dir = base.join("markings");
+    fs::create_dir_all(&dir).expect("create horse markings dir");
+    for style in ALL_COAT_STYLES {
+        if !has_markings(*style) {
+            continue;
+        }
+        for colour in ALL_COAT_COLOURS {
+            let config = HorseConfig {
+                coat_colour: *colour,
+                coat_style: *style,
+                ..default_config
+            };
+            let svg = generate_horse_layer_svg(&config, HorseLayer::Markings);
+            let name = format!("{}_{}", style.label(), colour.label());
+            write_layer_png(&dir, &name, &svg, png_w, png_h);
+            println!("  horse/markings/{name}");
+        }
+    }
+
+    // Mane: one per ManeStyle
+    let dir = base.join("mane");
+    fs::create_dir_all(&dir).expect("create horse mane dir");
+    for style in ALL_MANE_STYLES {
+        let config = HorseConfig {
+            mane: *style,
+            ..default_config
+        };
+        let svg = generate_horse_layer_svg(&config, HorseLayer::Mane);
+        write_layer_png(&dir, style.label(), &svg, png_w, png_h);
+        println!("  horse/mane/{}", style.label());
+    }
+
+    // Tack: one per TackStyle, skip None
+    let dir = base.join("tack");
+    fs::create_dir_all(&dir).expect("create horse tack dir");
+    for style in ALL_TACK_STYLES {
+        if !has_tack(*style) {
+            continue;
+        }
+        let config = HorseConfig {
+            tack: *style,
+            ..default_config
+        };
+        let svg = generate_horse_layer_svg(&config, HorseLayer::Tack);
+        write_layer_png(&dir, style.label(), &svg, png_w, png_h);
+        println!("  horse/tack/{}", style.label());
     }
 }
 

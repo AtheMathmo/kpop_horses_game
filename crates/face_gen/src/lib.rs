@@ -5,6 +5,9 @@
 mod eyes;
 mod face;
 mod hair;
+mod horse_body;
+mod horse_mane;
+mod horse_tack;
 mod mouth;
 mod render;
 
@@ -80,6 +83,206 @@ pub enum FaceLayer {
     Mouth,
     HairFront,
 }
+
+// ---------------------------------------------------------------------------
+// Horse component enums
+// ---------------------------------------------------------------------------
+
+/// Canvas dimensions for horse sprites.
+pub const HORSE_W: f32 = 400.0;
+pub const HORSE_H: f32 = 380.0;
+
+/// Center of the horse on the canvas.
+pub const HORSE_CX: f32 = HORSE_W / 2.0;
+pub const HORSE_CY: f32 = HORSE_H / 2.0 + 20.0;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum CoatColour {
+    #[default]
+    Chestnut,
+    Black,
+    White,
+    Dapple,
+    Palomino,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum CoatStyle {
+    #[default]
+    Plain,
+    Socks,
+    Blaze,
+    Painted,
+    Starry,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum ManeStyle {
+    #[default]
+    Flowing,
+    Braided,
+    Flowers,
+    Ribbons,
+    Mohawk,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum TackStyle {
+    #[default]
+    None,
+    WesternSaddle,
+    EnglishSaddle,
+    Blanket,
+    Bridle,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum HorseLayer {
+    Body,
+    Markings,
+    Mane,
+    Tack,
+}
+
+impl CoatColour {
+    pub fn hex(self) -> &'static str {
+        match self {
+            Self::Chestnut => "#8B4513",
+            Self::Black => "#1A1A1A",
+            Self::White => "#F5F0E8",
+            Self::Dapple => "#A0A0A0",
+            Self::Palomino => "#E8C860",
+        }
+    }
+
+    pub fn shadow_hex(self) -> &'static str {
+        match self {
+            Self::Chestnut => "#5C2E0A",
+            Self::Black => "#0A0A0A",
+            Self::White => "#D8D0C0",
+            Self::Dapple => "#707070",
+            Self::Palomino => "#C0A040",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Chestnut => "chestnut",
+            Self::Black => "black",
+            Self::White => "white",
+            Self::Dapple => "dapple",
+            Self::Palomino => "palomino",
+        }
+    }
+
+    pub fn display(self) -> &'static str {
+        match self {
+            Self::Chestnut => "Chestnut",
+            Self::Black => "Black",
+            Self::White => "White",
+            Self::Dapple => "Dapple",
+            Self::Palomino => "Palomino",
+        }
+    }
+}
+
+impl CoatStyle {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Plain => "plain",
+            Self::Socks => "socks",
+            Self::Blaze => "blaze",
+            Self::Painted => "painted",
+            Self::Starry => "starry",
+        }
+    }
+
+    pub fn display(self) -> &'static str {
+        match self {
+            Self::Plain => "Plain",
+            Self::Socks => "Socks",
+            Self::Blaze => "Blaze",
+            Self::Painted => "Painted",
+            Self::Starry => "Starry",
+        }
+    }
+}
+
+impl ManeStyle {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Flowing => "flowing",
+            Self::Braided => "braided",
+            Self::Flowers => "flowers",
+            Self::Ribbons => "ribbons",
+            Self::Mohawk => "mohawk",
+        }
+    }
+
+    pub fn display(self) -> &'static str {
+        match self {
+            Self::Flowing => "Flowing",
+            Self::Braided => "Braided",
+            Self::Flowers => "Flowers",
+            Self::Ribbons => "Ribbons",
+            Self::Mohawk => "Mohawk",
+        }
+    }
+}
+
+impl TackStyle {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::WesternSaddle => "western",
+            Self::EnglishSaddle => "english",
+            Self::Blanket => "blanket",
+            Self::Bridle => "bridle",
+        }
+    }
+
+    pub fn display(self) -> &'static str {
+        match self {
+            Self::None => "None",
+            Self::WesternSaddle => "Western Saddle",
+            Self::EnglishSaddle => "English Saddle",
+            Self::Blanket => "Blanket",
+            Self::Bridle => "Bridle",
+        }
+    }
+}
+
+pub const ALL_COAT_COLOURS: &[CoatColour] = &[
+    CoatColour::Chestnut,
+    CoatColour::Black,
+    CoatColour::White,
+    CoatColour::Dapple,
+    CoatColour::Palomino,
+];
+
+pub const ALL_COAT_STYLES: &[CoatStyle] = &[
+    CoatStyle::Plain,
+    CoatStyle::Socks,
+    CoatStyle::Blaze,
+    CoatStyle::Painted,
+    CoatStyle::Starry,
+];
+
+pub const ALL_MANE_STYLES: &[ManeStyle] = &[
+    ManeStyle::Flowing,
+    ManeStyle::Braided,
+    ManeStyle::Flowers,
+    ManeStyle::Ribbons,
+    ManeStyle::Mohawk,
+];
+
+pub const ALL_TACK_STYLES: &[TackStyle] = &[
+    TackStyle::None,
+    TackStyle::WesternSaddle,
+    TackStyle::EnglishSaddle,
+    TackStyle::Blanket,
+    TackStyle::Bridle,
+];
 
 impl SkinTone {
     pub fn hex(self) -> &'static str {
@@ -336,9 +539,77 @@ pub fn has_front_layer(style: HairStyle) -> bool {
     style == HairStyle::Bangs
 }
 
+// ---------------------------------------------------------------------------
+// Horse SVG composition
+// ---------------------------------------------------------------------------
+
+/// Character selections for a complete horse.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct HorseConfig {
+    pub coat_colour: CoatColour,
+    pub coat_style: CoatStyle,
+    pub mane: ManeStyle,
+    pub tack: TackStyle,
+}
+
+/// Generate a complete SVG document string for a horse.
+pub fn generate_horse_svg(config: &HorseConfig) -> String {
+    let mut body = String::with_capacity(4096);
+    body.push_str(&horse_defs(config));
+
+    // Layer order: body → markings → mane → tack
+    body.push_str(&horse_body::body_svg(config.coat_colour));
+    body.push_str(&horse_body::markings_svg(
+        config.coat_style,
+        config.coat_colour,
+    ));
+    body.push_str(&horse_mane::mane_svg(config.mane));
+    body.push_str(&horse_tack::tack_svg(config.tack));
+
+    wrap_horse_svg(&body)
+}
+
+/// Generate an SVG for a single horse layer (for sprite export).
+pub fn generate_horse_layer_svg(config: &HorseConfig, layer: HorseLayer) -> String {
+    let mut body = String::with_capacity(2048);
+    body.push_str(&horse_defs(config));
+
+    match layer {
+        HorseLayer::Body => body.push_str(&horse_body::body_svg(config.coat_colour)),
+        HorseLayer::Markings => {
+            body.push_str(&horse_body::markings_svg(
+                config.coat_style,
+                config.coat_colour,
+            ));
+        }
+        HorseLayer::Mane => body.push_str(&horse_mane::mane_svg(config.mane)),
+        HorseLayer::Tack => body.push_str(&horse_tack::tack_svg(config.tack)),
+    }
+
+    wrap_horse_svg(&body)
+}
+
+/// Returns true if the horse has visible markings for the given coat style.
+pub fn has_markings(style: CoatStyle) -> bool {
+    style != CoatStyle::Plain
+}
+
+/// Returns true if the horse has visible tack.
+pub fn has_tack(style: TackStyle) -> bool {
+    style != TackStyle::None
+}
+
 fn wrap_svg(body: &str) -> String {
     format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {CANVAS_W} {CANVAS_H}" width="{CANVAS_W}" height="{CANVAS_H}">
+{body}
+</svg>"#
+    )
+}
+
+fn wrap_horse_svg(body: &str) -> String {
+    format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {HORSE_W} {HORSE_H}" width="{HORSE_W}" height="{HORSE_H}">
 {body}
 </svg>"#
     )
@@ -357,6 +628,24 @@ fn svg_defs(config: &FaceConfig) -> String {
   <radialGradient id="cheek-grad" cx="50%" cy="50%" r="50%">
     <stop offset="0%" stop-color="#FF8888" stop-opacity="0.35"/>
     <stop offset="100%" stop-color="#FF8888" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="soft-shadow" x="-10%" y="-10%" width="130%" height="130%">
+    <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.2"/>
+  </filter>
+</defs>
+"##
+    )
+}
+
+fn horse_defs(config: &HorseConfig) -> String {
+    let coat = config.coat_colour.hex();
+    let shadow = config.coat_colour.shadow_hex();
+
+    format!(
+        r##"<defs>
+  <radialGradient id="coat-grad" cx="45%" cy="35%" r="65%">
+    <stop offset="0%" stop-color="{coat}"/>
+    <stop offset="100%" stop-color="{shadow}"/>
   </radialGradient>
   <filter id="soft-shadow" x="-10%" y="-10%" width="130%" height="130%">
     <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.2"/>

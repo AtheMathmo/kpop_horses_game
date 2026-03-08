@@ -10,17 +10,18 @@ const HAIR_ACCESSORY: &str = "#FF007F";
 /// Hair drawn behind the face shape.
 pub fn hair_back_svg(style: HairStyle) -> String {
     match style {
-        HairStyle::Short => short_back(),
         HairStyle::Long => long_back(),
-        HairStyle::Ponytail => ponytail_back(),
-        HairStyle::Spiky => spiky_back(),
         HairStyle::Bangs => bangs_back(),
+        _ => String::new(),
     }
 }
 
-/// Hair drawn in front of the face (bangs, fringe overlays).
+/// Hair drawn in front of the face.
 pub fn hair_front_svg(style: HairStyle) -> String {
     match style {
+        HairStyle::Short => short_front(),
+        HairStyle::Ponytail => ponytail_front(),
+        HairStyle::Spiky => spiky_front(),
         HairStyle::Bangs => bangs_front(),
         _ => String::new(),
     }
@@ -30,7 +31,7 @@ pub fn hair_front_svg(style: HairStyle) -> String {
 // Short hair — close-cropped cap
 // ---------------------------------------------------------------------------
 
-fn short_back() -> String {
+fn short_front() -> String {
     let top = FACE_CY - 130.0;
     let left = FACE_CX - 100.0;
     let right = FACE_CX + 100.0;
@@ -109,7 +110,7 @@ fn long_back() -> String {
 // Ponytail — cap with side tail
 // ---------------------------------------------------------------------------
 
-fn ponytail_back() -> String {
+fn ponytail_front() -> String {
     let top = FACE_CY - 130.0;
     let left = FACE_CX - 95.0;
     let right = FACE_CX + 95.0;
@@ -150,7 +151,7 @@ fn ponytail_back() -> String {
 // Spiky hair — dramatic pointed spikes
 // ---------------------------------------------------------------------------
 
-fn spiky_back() -> String {
+fn spiky_front() -> String {
     let base_y = FACE_CY - 100.0;
 
     let spikes: [(f32, f32, f32); 5] = [
