@@ -12,6 +12,7 @@ members = ["crates/face_gen"]
 
 [dependencies]
 bevy = "0.18.1"
+face_gen = { path = "crates/face_gen" }
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]

@@ -3,6 +3,10 @@
 use bevy::prelude::*;
 
 use crate::assets::Palette;
+use face_gen::{
+    ALL_EYE_STYLES, ALL_FACE_SHAPES, ALL_HAIR_STYLES, ALL_MOUTH_STYLES, ALL_SKIN_TONES, EyeStyle,
+    FaceLayer, FaceShape, HairStyle, MouthStyle, SkinTone, has_front_layer,
+};
 
 // ---------------------------------------------------------------------------
 // Plugin
@@ -14,7 +18,7 @@ impl Plugin for CharacterCreatorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CharacterSelections>()
             .init_resource::<ActiveCategory>()
-            .add_systems(Startup, spawn_ui)
+            .add_systems(Startup, (spawn_ui, spawn_face_sprites))
             .add_systems(
                 Update,
                 (update_labels, update_category_highlights, update_preview),
@@ -23,7 +27,7 @@ impl Plugin for CharacterCreatorPlugin {
 }
 
 // ---------------------------------------------------------------------------
-// Data model
+// Data model — types re-exported from face_gen
 // ---------------------------------------------------------------------------
 
 /// Trait for enums that can cycle forward/backward through their variants.
@@ -41,182 +45,66 @@ trait Cyclable: Sized + Copy + 'static {
         v[(self.index() + v.len() - 1) % v.len()]
     }
 
-    fn label(&self) -> &'static str;
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum FaceShape {
-    #[default]
-    Oval,
-    Round,
-    Square,
-    Heart,
-    Long,
+    fn display_label(&self) -> &'static str;
 }
 
 impl Cyclable for FaceShape {
     fn variants() -> &'static [Self] {
-        &[
-            Self::Oval,
-            Self::Round,
-            Self::Square,
-            Self::Heart,
-            Self::Long,
-        ]
+        ALL_FACE_SHAPES
     }
     fn index(&self) -> usize {
-        *self as usize
+        ALL_FACE_SHAPES.iter().position(|v| v == self).unwrap()
     }
-    fn label(&self) -> &'static str {
-        match self {
-            Self::Oval => "Oval",
-            Self::Round => "Round",
-            Self::Square => "Square",
-            Self::Heart => "Heart",
-            Self::Long => "Long",
-        }
+    fn display_label(&self) -> &'static str {
+        self.display()
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum EyeStyle {
-    #[default]
-    Round,
-    Almond,
-    Cat,
-    Wide,
-    Narrow,
 }
 
 impl Cyclable for EyeStyle {
     fn variants() -> &'static [Self] {
-        &[
-            Self::Round,
-            Self::Almond,
-            Self::Cat,
-            Self::Wide,
-            Self::Narrow,
-        ]
+        ALL_EYE_STYLES
     }
     fn index(&self) -> usize {
-        *self as usize
+        ALL_EYE_STYLES.iter().position(|v| v == self).unwrap()
     }
-    fn label(&self) -> &'static str {
-        match self {
-            Self::Round => "Round",
-            Self::Almond => "Almond",
-            Self::Cat => "Cat",
-            Self::Wide => "Wide",
-            Self::Narrow => "Narrow",
-        }
+    fn display_label(&self) -> &'static str {
+        self.display()
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum HairStyle {
-    #[default]
-    Short,
-    Long,
-    Ponytail,
-    Spiky,
-    Bangs,
 }
 
 impl Cyclable for HairStyle {
     fn variants() -> &'static [Self] {
-        &[
-            Self::Short,
-            Self::Long,
-            Self::Ponytail,
-            Self::Spiky,
-            Self::Bangs,
-        ]
+        ALL_HAIR_STYLES
     }
     fn index(&self) -> usize {
-        *self as usize
+        ALL_HAIR_STYLES.iter().position(|v| v == self).unwrap()
     }
-    fn label(&self) -> &'static str {
-        match self {
-            Self::Short => "Short",
-            Self::Long => "Long",
-            Self::Ponytail => "Ponytail",
-            Self::Spiky => "Spiky",
-            Self::Bangs => "Bangs",
-        }
+    fn display_label(&self) -> &'static str {
+        self.display()
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum MouthStyle {
-    #[default]
-    Smile,
-    Neutral,
-    Pout,
-    Open,
-    Smirk,
 }
 
 impl Cyclable for MouthStyle {
     fn variants() -> &'static [Self] {
-        &[
-            Self::Smile,
-            Self::Neutral,
-            Self::Pout,
-            Self::Open,
-            Self::Smirk,
-        ]
+        ALL_MOUTH_STYLES
     }
     fn index(&self) -> usize {
-        *self as usize
+        ALL_MOUTH_STYLES.iter().position(|v| v == self).unwrap()
     }
-    fn label(&self) -> &'static str {
-        match self {
-            Self::Smile => "Smile",
-            Self::Neutral => "Neutral",
-            Self::Pout => "Pout",
-            Self::Open => "Open",
-            Self::Smirk => "Smirk",
-        }
+    fn display_label(&self) -> &'static str {
+        self.display()
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum SkinTone {
-    #[default]
-    Light,
-    Medium,
-    Tan,
-    Dark,
-    Pale,
 }
 
 impl Cyclable for SkinTone {
     fn variants() -> &'static [Self] {
-        &[Self::Light, Self::Medium, Self::Tan, Self::Dark, Self::Pale]
+        ALL_SKIN_TONES
     }
     fn index(&self) -> usize {
-        *self as usize
+        ALL_SKIN_TONES.iter().position(|v| v == self).unwrap()
     }
-    fn label(&self) -> &'static str {
-        match self {
-            Self::Light => "Light",
-            Self::Medium => "Medium",
-            Self::Tan => "Tan",
-            Self::Dark => "Dark",
-            Self::Pale => "Pale",
-        }
-    }
-}
-
-impl SkinTone {
-    fn color(&self) -> Color {
-        match self {
-            Self::Light => Palette::SkinToneLight.color(),
-            Self::Medium => Palette::SkinToneMedium.color(),
-            Self::Tan => Color::srgb_u8(180, 130, 80),
-            Self::Dark => Color::srgb_u8(120, 80, 50),
-            Self::Pale => Color::srgb_u8(255, 240, 230),
-        }
+    fn display_label(&self) -> &'static str {
+        self.display()
     }
 }
 
@@ -270,16 +158,19 @@ struct NextOptionButton;
 struct DoneButton;
 
 #[derive(Component)]
-struct PreviewArea;
-
-#[derive(Component)]
 struct CategoryLabel;
 
 #[derive(Component)]
 struct OptionLabel;
 
+#[derive(Component)]
+struct FacePreviewRoot;
+
+#[derive(Component)]
+struct FaceSpriteLayer(FaceLayer);
+
 // ---------------------------------------------------------------------------
-// UI spawning
+// UI spawning (controls only — no preview rendering)
 // ---------------------------------------------------------------------------
 
 fn spawn_ui(mut commands: Commands) {
@@ -316,7 +207,12 @@ fn spawn_ui(mut commands: Commands) {
             })
             .with_children(|main_row| {
                 spawn_category_panel(main_row);
-                spawn_preview_area(main_row);
+                // Empty spacer where the world-space sprites render
+                main_row.spawn(Node {
+                    width: Val::Px(300.0),
+                    height: Val::Px(380.0),
+                    ..default()
+                });
                 spawn_option_panel(main_row);
             });
 
@@ -374,21 +270,6 @@ fn spawn_category_button(parent: &mut ChildSpawnerCommands, category: ActiveCate
         .observe(on_category_click)
         .observe(on_button_over)
         .observe(on_button_out);
-}
-
-fn spawn_preview_area(parent: &mut ChildSpawnerCommands) {
-    parent.spawn((
-        PreviewArea,
-        Node {
-            width: Val::Px(300.0),
-            height: Val::Px(380.0),
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            border_radius: BorderRadius::all(Val::Px(16.0)),
-            ..default()
-        },
-        BackgroundColor(Palette::CarbonBlack.into()),
-    ));
 }
 
 fn spawn_option_panel(parent: &mut ChildSpawnerCommands) {
@@ -521,6 +402,73 @@ fn spawn_done_button(parent: &mut ChildSpawnerCommands) {
 }
 
 // ---------------------------------------------------------------------------
+// World-space face sprites
+// ---------------------------------------------------------------------------
+
+/// Sprite scale factor — PNGs are 600×760, we want ~300×380 on screen.
+const SPRITE_SCALE: f32 = 0.5;
+
+fn spawn_face_sprites(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    selections: Res<CharacterSelections>,
+) {
+    let layers = [
+        (FaceLayer::HairBack, 0.0),
+        (FaceLayer::Face, 1.0),
+        (FaceLayer::Eyes, 2.0),
+        (FaceLayer::Mouth, 3.0),
+        (FaceLayer::HairFront, 4.0),
+    ];
+
+    commands
+        .spawn((
+            FacePreviewRoot,
+            Transform::from_scale(Vec3::splat(SPRITE_SCALE)),
+            Visibility::default(),
+        ))
+        .with_children(|root| {
+            for (layer, z) in layers {
+                let show = layer != FaceLayer::HairFront || has_front_layer(selections.hair);
+
+                let mut sprite = Sprite::default();
+                if show {
+                    sprite.image = asset_server.load(&layer_asset_path(layer, &selections));
+                }
+
+                root.spawn((
+                    FaceSpriteLayer(layer),
+                    sprite,
+                    Transform::from_xyz(0.0, 0.0, z),
+                    if show {
+                        Visibility::Inherited
+                    } else {
+                        Visibility::Hidden
+                    },
+                ));
+            }
+        });
+}
+
+fn layer_asset_path(layer: FaceLayer, selections: &CharacterSelections) -> String {
+    match layer {
+        FaceLayer::HairBack => format!("faces/hair_back/{}.png", selections.hair.label()),
+        FaceLayer::Face => format!(
+            "faces/face/{}_{}.png",
+            selections.face.label(),
+            selections.skin.label()
+        ),
+        FaceLayer::Eyes => format!(
+            "faces/eyes/{}_{}.png",
+            selections.eyes.label(),
+            selections.skin.label()
+        ),
+        FaceLayer::Mouth => format!("faces/mouth/{}.png", selections.mouth.label()),
+        FaceLayer::HairFront => format!("faces/hair_front/{}.png", selections.hair.label()),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Interaction observers
 // ---------------------------------------------------------------------------
 
@@ -566,11 +514,11 @@ fn on_next_click(
 fn on_done_click(_trigger: On<Pointer<Click>>, selections: Res<CharacterSelections>) {
     info!(
         "Character ready! Face: {}, Eyes: {}, Hair: {}, Mouth: {}, Skin: {}",
-        selections.face.label(),
-        selections.eyes.label(),
-        selections.hair.label(),
-        selections.mouth.label(),
-        selections.skin.label(),
+        selections.face.display(),
+        selections.eyes.display(),
+        selections.hair.display(),
+        selections.mouth.display(),
+        selections.skin.display(),
     );
 }
 
@@ -626,11 +574,11 @@ fn update_labels(
     }
 
     let option_text = match *active {
-        ActiveCategory::Face => selections.face.label(),
-        ActiveCategory::Eyes => selections.eyes.label(),
-        ActiveCategory::Hair => selections.hair.label(),
-        ActiveCategory::Mouth => selections.mouth.label(),
-        ActiveCategory::Skin => selections.skin.label(),
+        ActiveCategory::Face => selections.face.display_label(),
+        ActiveCategory::Eyes => selections.eyes.display_label(),
+        ActiveCategory::Hair => selections.hair.display_label(),
+        ActiveCategory::Mouth => selections.mouth.display_label(),
+        ActiveCategory::Skin => selections.skin.display_label(),
     };
 
     for mut text in &mut opt_label {
@@ -657,289 +605,26 @@ fn update_category_highlights(
 }
 
 fn update_preview(
-    mut commands: Commands,
     selections: Res<CharacterSelections>,
-    preview_query: Query<Entity, With<PreviewArea>>,
-    children_query: Query<&Children>,
+    asset_server: Res<AssetServer>,
+    mut query: Query<(&FaceSpriteLayer, &mut Sprite, &mut Visibility)>,
 ) {
     if !selections.is_changed() {
         return;
     }
 
-    let Ok(preview_entity) = preview_query.single() else {
-        return;
-    };
-
-    // Despawn existing children
-    if let Ok(children) = children_query.get(preview_entity) {
-        for child in children.iter() {
-            commands.entity(child).despawn();
-        }
-    }
-
-    // Rebuild the face preview
-    commands.entity(preview_entity).with_children(|parent| {
-        spawn_face_preview(parent, &selections);
-    });
-}
-
-// ---------------------------------------------------------------------------
-// Face preview rendering
-// ---------------------------------------------------------------------------
-
-fn spawn_face_preview(parent: &mut ChildSpawnerCommands, selections: &CharacterSelections) {
-    let skin_color = selections.skin.color();
-
-    let (face_w, face_h, face_radius) = match selections.face {
-        FaceShape::Oval => (180.0, 240.0, Val::Percent(45.0)),
-        FaceShape::Round => (210.0, 210.0, Val::Percent(50.0)),
-        FaceShape::Square => (200.0, 220.0, Val::Percent(12.0)),
-        FaceShape::Heart => (190.0, 230.0, Val::Percent(40.0)),
-        FaceShape::Long => (160.0, 260.0, Val::Percent(45.0)),
-    };
-
-    parent
-        .spawn((
-            Node {
-                width: Val::Px(face_w),
-                height: Val::Px(face_h),
-                position_type: PositionType::Relative,
-                border_radius: BorderRadius::all(face_radius),
-                ..default()
-            },
-            BackgroundColor(skin_color),
-        ))
-        .with_children(|face| {
-            spawn_hair(face, selections.hair, face_w);
-            spawn_eyes(face, selections.eyes);
-            spawn_mouth(face, selections.mouth);
-        });
-}
-
-fn spawn_hair(parent: &mut ChildSpawnerCommands, style: HairStyle, face_w: f32) {
-    let hair_color: Color = Palette::DeepViolet.into();
-
-    match style {
-        HairStyle::Short => {
-            parent.spawn((
-                Node {
-                    width: Val::Px(face_w + 20.0),
-                    height: Val::Px(50.0),
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(-15.0),
-                    left: Val::Px(-10.0),
-                    border_radius: BorderRadius::top(Val::Percent(50.0)),
-                    ..default()
-                },
-                BackgroundColor(hair_color),
-            ));
-        }
-        HairStyle::Long => {
-            parent.spawn((
-                Node {
-                    width: Val::Px(face_w + 30.0),
-                    height: Val::Px(60.0),
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(-20.0),
-                    left: Val::Px(-15.0),
-                    border_radius: BorderRadius::top(Val::Percent(50.0)),
-                    ..default()
-                },
-                BackgroundColor(hair_color),
-            ));
-            parent.spawn((
-                Node {
-                    width: Val::Px(25.0),
-                    height: Val::Px(200.0),
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(30.0),
-                    left: Val::Px(-15.0),
-                    border_radius: BorderRadius::left(Val::Px(10.0)),
-                    ..default()
-                },
-                BackgroundColor(hair_color),
-            ));
-            parent.spawn((
-                Node {
-                    width: Val::Px(25.0),
-                    height: Val::Px(200.0),
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(30.0),
-                    right: Val::Px(-15.0),
-                    border_radius: BorderRadius::right(Val::Px(10.0)),
-                    ..default()
-                },
-                BackgroundColor(hair_color),
-            ));
-        }
-        HairStyle::Ponytail => {
-            parent.spawn((
-                Node {
-                    width: Val::Px(face_w + 10.0),
-                    height: Val::Px(45.0),
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(-12.0),
-                    left: Val::Px(-5.0),
-                    border_radius: BorderRadius::top(Val::Percent(50.0)),
-                    ..default()
-                },
-                BackgroundColor(hair_color),
-            ));
-            parent.spawn((
-                Node {
-                    width: Val::Px(30.0),
-                    height: Val::Px(120.0),
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(-10.0),
-                    right: Val::Px(-25.0),
-                    border_radius: BorderRadius::all(Val::Px(12.0)),
-                    ..default()
-                },
-                BackgroundColor(hair_color),
-            ));
-        }
-        HairStyle::Spiky => {
-            for i in 0..5 {
-                let offset = i as f32 * (face_w / 5.0) + 5.0;
-                parent.spawn((
-                    Node {
-                        width: Val::Px(20.0),
-                        height: Val::Px(45.0),
-                        position_type: PositionType::Absolute,
-                        top: Val::Px(-35.0),
-                        left: Val::Px(offset),
-                        border_radius: BorderRadius::top(Val::Percent(50.0)),
-                        ..default()
-                    },
-                    BackgroundColor(hair_color),
-                ));
+    for (layer, mut sprite, mut vis) in &mut query {
+        // Hide hair_front for styles that don't have one
+        if layer.0 == FaceLayer::HairFront {
+            if has_front_layer(selections.hair) {
+                *vis = Visibility::Inherited;
+            } else {
+                *vis = Visibility::Hidden;
+                continue;
             }
         }
-        HairStyle::Bangs => {
-            parent.spawn((
-                Node {
-                    width: Val::Px(face_w + 20.0),
-                    height: Val::Px(55.0),
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(-18.0),
-                    left: Val::Px(-10.0),
-                    border_radius: BorderRadius::top(Val::Percent(50.0)),
-                    ..default()
-                },
-                BackgroundColor(hair_color),
-            ));
-            parent.spawn((
-                Node {
-                    width: Val::Px(face_w * 0.7),
-                    height: Val::Px(40.0),
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(15.0),
-                    left: Val::Px(face_w * 0.05),
-                    border_radius: BorderRadius::bottom(Val::Px(20.0)),
-                    ..default()
-                },
-                BackgroundColor(hair_color),
-            ));
-        }
+
+        let path = layer_asset_path(layer.0, &selections);
+        sprite.image = asset_server.load(&path);
     }
-}
-
-fn spawn_eyes(parent: &mut ChildSpawnerCommands, style: EyeStyle) {
-    let eye_color: Color = Palette::CarbonBlack.into();
-    let pupil_color: Color = Palette::WhiteSmoke.into();
-
-    let (eye_w, eye_h, eye_radius, pupil_w, pupil_h) = match style {
-        EyeStyle::Round => (28.0, 28.0, Val::Percent(50.0), 12.0, 12.0),
-        EyeStyle::Almond => (32.0, 18.0, Val::Percent(50.0), 12.0, 12.0),
-        EyeStyle::Cat => (30.0, 16.0, Val::Percent(40.0), 10.0, 14.0),
-        EyeStyle::Wide => (36.0, 30.0, Val::Percent(50.0), 14.0, 14.0),
-        EyeStyle::Narrow => (28.0, 10.0, Val::Percent(50.0), 8.0, 8.0),
-    };
-
-    spawn_single_eye(
-        parent,
-        eye_w,
-        eye_h,
-        eye_radius,
-        pupil_w,
-        pupil_h,
-        eye_color,
-        pupil_color,
-        Val::Percent(22.0),
-    );
-    spawn_single_eye(
-        parent,
-        eye_w,
-        eye_h,
-        eye_radius,
-        pupil_w,
-        pupil_h,
-        eye_color,
-        pupil_color,
-        Val::Percent(55.0),
-    );
-}
-
-fn spawn_single_eye(
-    parent: &mut ChildSpawnerCommands,
-    w: f32,
-    h: f32,
-    radius: Val,
-    pupil_w: f32,
-    pupil_h: f32,
-    eye_color: Color,
-    pupil_color: Color,
-    left: Val,
-) {
-    parent
-        .spawn((
-            Node {
-                width: Val::Px(w),
-                height: Val::Px(h),
-                position_type: PositionType::Absolute,
-                top: Val::Percent(38.0),
-                left,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                border_radius: BorderRadius::all(radius),
-                ..default()
-            },
-            BackgroundColor(eye_color),
-        ))
-        .with_children(|eye| {
-            eye.spawn((
-                Node {
-                    width: Val::Px(pupil_w),
-                    height: Val::Px(pupil_h),
-                    border_radius: BorderRadius::all(Val::Percent(50.0)),
-                    ..default()
-                },
-                BackgroundColor(pupil_color),
-            ));
-        });
-}
-
-fn spawn_mouth(parent: &mut ChildSpawnerCommands, style: MouthStyle) {
-    let mouth_color: Color = Palette::NeonPink.into();
-
-    let (w, h, radius) = match style {
-        MouthStyle::Smile => (50.0, 16.0, BorderRadius::bottom(Val::Percent(50.0))),
-        MouthStyle::Neutral => (40.0, 6.0, BorderRadius::all(Val::Px(3.0))),
-        MouthStyle::Pout => (22.0, 22.0, BorderRadius::all(Val::Percent(50.0))),
-        MouthStyle::Open => (30.0, 28.0, BorderRadius::all(Val::Percent(50.0))),
-        MouthStyle::Smirk => (36.0, 12.0, BorderRadius::bottom_right(Val::Percent(50.0))),
-    };
-
-    parent.spawn((
-        Node {
-            width: Val::Px(w),
-            height: Val::Px(h),
-            position_type: PositionType::Absolute,
-            top: Val::Percent(72.0),
-            left: Val::Percent(50.0 - (w / 4.0)),
-            border_radius: radius,
-            ..default()
-        },
-        BackgroundColor(mouth_color),
-    ));
 }

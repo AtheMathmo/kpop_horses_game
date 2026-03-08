@@ -22,8 +22,9 @@ pub const FACE_CY: f32 = CANVAS_H / 2.0 + 10.0;
 // Face component enums (mirrors character_creator types)
 // ---------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum FaceShape {
+    #[default]
     Oval,
     Round,
     Square,
@@ -31,8 +32,9 @@ pub enum FaceShape {
     Long,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum EyeStyle {
+    #[default]
     Round,
     Almond,
     Cat,
@@ -40,8 +42,9 @@ pub enum EyeStyle {
     Narrow,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum HairStyle {
+    #[default]
     Short,
     Long,
     Ponytail,
@@ -49,8 +52,9 @@ pub enum HairStyle {
     Bangs,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum MouthStyle {
+    #[default]
     Smile,
     Neutral,
     Pout,
@@ -58,13 +62,23 @@ pub enum MouthStyle {
     Smirk,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum SkinTone {
+    #[default]
     Light,
     Medium,
     Tan,
     Dark,
     Pale,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum FaceLayer {
+    HairBack,
+    Face,
+    Eyes,
+    Mouth,
+    HairFront,
 }
 
 impl SkinTone {
@@ -100,6 +114,16 @@ impl FaceShape {
             Self::Long => "long",
         }
     }
+
+    pub fn display(self) -> &'static str {
+        match self {
+            Self::Oval => "Oval",
+            Self::Round => "Round",
+            Self::Square => "Square",
+            Self::Heart => "Heart",
+            Self::Long => "Long",
+        }
+    }
 }
 
 impl EyeStyle {
@@ -110,6 +134,16 @@ impl EyeStyle {
             Self::Cat => "cat",
             Self::Wide => "wide",
             Self::Narrow => "narrow",
+        }
+    }
+
+    pub fn display(self) -> &'static str {
+        match self {
+            Self::Round => "Round",
+            Self::Almond => "Almond",
+            Self::Cat => "Cat",
+            Self::Wide => "Wide",
+            Self::Narrow => "Narrow",
         }
     }
 }
@@ -124,6 +158,16 @@ impl HairStyle {
             Self::Bangs => "bangs",
         }
     }
+
+    pub fn display(self) -> &'static str {
+        match self {
+            Self::Short => "Short",
+            Self::Long => "Long",
+            Self::Ponytail => "Ponytail",
+            Self::Spiky => "Spiky",
+            Self::Bangs => "Bangs",
+        }
+    }
 }
 
 impl MouthStyle {
@@ -136,6 +180,16 @@ impl MouthStyle {
             Self::Smirk => "smirk",
         }
     }
+
+    pub fn display(self) -> &'static str {
+        match self {
+            Self::Smile => "Smile",
+            Self::Neutral => "Neutral",
+            Self::Pout => "Pout",
+            Self::Open => "Open",
+            Self::Smirk => "Smirk",
+        }
+    }
 }
 
 impl SkinTone {
@@ -146,6 +200,16 @@ impl SkinTone {
             Self::Tan => "tan",
             Self::Dark => "dark",
             Self::Pale => "pale",
+        }
+    }
+
+    pub fn display(self) -> &'static str {
+        match self {
+            Self::Light => "Light",
+            Self::Medium => "Medium",
+            Self::Tan => "Tan",
+            Self::Dark => "Dark",
+            Self::Pale => "Pale",
         }
     }
 }
@@ -199,7 +263,7 @@ pub const ALL_SKIN_TONES: &[SkinTone] = &[
 // ---------------------------------------------------------------------------
 
 /// Character selections for a complete face.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct FaceConfig {
     pub face: FaceShape,
     pub eyes: EyeStyle,
@@ -237,8 +301,8 @@ pub fn generate_component_svg(config: &FaceConfig, component: &str) -> String {
             body.push_str(&eyes::eyes_svg(config.eyes, config.skin));
         }
         "hair" => {
-            body.push_str(&face::face_svg(config.face, config.skin));
             body.push_str(&hair::hair_back_svg(config.hair));
+            body.push_str(&face::face_svg(config.face, config.skin));
             body.push_str(&hair::hair_front_svg(config.hair));
         }
         "mouth" => {
@@ -249,6 +313,27 @@ pub fn generate_component_svg(config: &FaceConfig, component: &str) -> String {
     }
 
     wrap_svg(&body)
+}
+
+/// Generate an SVG for a single isolated layer (for sprite export).
+pub fn generate_layer_svg(config: &FaceConfig, layer: FaceLayer) -> String {
+    let mut body = String::with_capacity(2048);
+    body.push_str(&svg_defs(config));
+
+    match layer {
+        FaceLayer::HairBack => body.push_str(&hair::hair_back_svg(config.hair)),
+        FaceLayer::Face => body.push_str(&face::face_svg(config.face, config.skin)),
+        FaceLayer::Eyes => body.push_str(&eyes::eyes_svg(config.eyes, config.skin)),
+        FaceLayer::Mouth => body.push_str(&mouth::mouth_svg(config.mouth)),
+        FaceLayer::HairFront => body.push_str(&hair::hair_front_svg(config.hair)),
+    }
+
+    wrap_svg(&body)
+}
+
+/// Returns true if the given hair style has a front layer (bangs overlay).
+pub fn has_front_layer(style: HairStyle) -> bool {
+    style == HairStyle::Bangs
 }
 
 fn wrap_svg(body: &str) -> String {

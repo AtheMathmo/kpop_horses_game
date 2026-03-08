@@ -9,14 +9,30 @@ use std::path::Path;
 
 use face_gen::{
     ALL_EYE_STYLES, ALL_FACE_SHAPES, ALL_HAIR_STYLES, ALL_MOUTH_STYLES, ALL_SKIN_TONES, CANVAS_H,
-    CANVAS_W, FaceConfig, generate_component_svg, generate_face_svg, rasterize_svg_to_png,
+    CANVAS_W, FaceConfig, FaceLayer, generate_component_svg, generate_face_svg, generate_layer_svg,
+    has_front_layer, rasterize_svg_to_png,
 };
 
 const OUTPUT_DIR: &str = "output";
 const PNG_SCALE: u32 = 2; // 2x for crisp rendering
 
 fn main() {
-    let all_combos = std::env::args().any(|a| a == "--all");
+    let args: Vec<String> = std::env::args().collect();
+    let all_combos = args.iter().any(|a| a == "--all");
+    let export_layers = args.iter().any(|a| a == "--export-layers");
+
+    if export_layers {
+        let default_out = "assets/faces".to_string();
+        let out_dir = args
+            .iter()
+            .position(|a| a == "--out")
+            .and_then(|i| args.get(i + 1))
+            .unwrap_or(&default_out);
+        let base = Path::new(out_dir);
+        export_layer_pngs(base);
+        println!("Done! Layers exported to {out_dir}/");
+        return;
+    }
 
     let base = Path::new(OUTPUT_DIR);
     fs::create_dir_all(base).expect("create output dir");
@@ -192,6 +208,96 @@ fn generate_all_combinations(base: &Path) {
         }
     }
     println!("Generated {count} face combinations.");
+}
+
+/// Export per-component layer PNGs for use as Bevy sprite assets.
+fn export_layer_pngs(base: &Path) {
+    let default_config = FaceConfig::default();
+    let png_w = CANVAS_W as u32 * PNG_SCALE;
+    let png_h = CANVAS_H as u32 * PNG_SCALE;
+
+    // Hair back: one per HairStyle (skin-independent)
+    let dir = base.join("hair_back");
+    fs::create_dir_all(&dir).expect("create hair_back dir");
+    for style in ALL_HAIR_STYLES {
+        let config = FaceConfig {
+            hair: *style,
+            ..default_config
+        };
+        let svg = generate_layer_svg(&config, FaceLayer::HairBack);
+        write_layer_png(&dir, style.label(), &svg, png_w, png_h);
+        println!("  hair_back/{}", style.label());
+    }
+
+    // Face: one per (FaceShape, SkinTone)
+    let dir = base.join("face");
+    fs::create_dir_all(&dir).expect("create face dir");
+    for shape in ALL_FACE_SHAPES {
+        for skin in ALL_SKIN_TONES {
+            let config = FaceConfig {
+                face: *shape,
+                skin: *skin,
+                ..default_config
+            };
+            let svg = generate_layer_svg(&config, FaceLayer::Face);
+            let name = format!("{}_{}", shape.label(), skin.label());
+            write_layer_png(&dir, &name, &svg, png_w, png_h);
+            println!("  face/{name}");
+        }
+    }
+
+    // Eyes: one per (EyeStyle, SkinTone)
+    let dir = base.join("eyes");
+    fs::create_dir_all(&dir).expect("create eyes dir");
+    for style in ALL_EYE_STYLES {
+        for skin in ALL_SKIN_TONES {
+            let config = FaceConfig {
+                eyes: *style,
+                skin: *skin,
+                ..default_config
+            };
+            let svg = generate_layer_svg(&config, FaceLayer::Eyes);
+            let name = format!("{}_{}", style.label(), skin.label());
+            write_layer_png(&dir, &name, &svg, png_w, png_h);
+            println!("  eyes/{name}");
+        }
+    }
+
+    // Mouth: one per MouthStyle (skin-independent)
+    let dir = base.join("mouth");
+    fs::create_dir_all(&dir).expect("create mouth dir");
+    for style in ALL_MOUTH_STYLES {
+        let config = FaceConfig {
+            mouth: *style,
+            ..default_config
+        };
+        let svg = generate_layer_svg(&config, FaceLayer::Mouth);
+        write_layer_png(&dir, style.label(), &svg, png_w, png_h);
+        println!("  mouth/{}", style.label());
+    }
+
+    // Hair front: only styles that have a front layer
+    let dir = base.join("hair_front");
+    fs::create_dir_all(&dir).expect("create hair_front dir");
+    for style in ALL_HAIR_STYLES {
+        if !has_front_layer(*style) {
+            continue;
+        }
+        let config = FaceConfig {
+            hair: *style,
+            ..default_config
+        };
+        let svg = generate_layer_svg(&config, FaceLayer::HairFront);
+        write_layer_png(&dir, style.label(), &svg, png_w, png_h);
+        println!("  hair_front/{}", style.label());
+    }
+}
+
+fn write_layer_png(dir: &Path, name: &str, svg: &str, w: u32, h: u32) {
+    let png_path = dir.join(format!("{name}.png"));
+    if let Some(png) = rasterize_svg_to_png(svg, w, h) {
+        fs::write(&png_path, png).expect("write PNG");
+    }
 }
 
 fn write_face(dir: &Path, name: &str, config: &FaceConfig) {

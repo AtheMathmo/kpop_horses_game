@@ -23,15 +23,15 @@ pub fn eyes_svg(style: EyeStyle, skin: SkinTone) -> String {
 
 fn single_eye(style: EyeStyle, cx: f32, cy: f32, is_right: bool, skin: SkinTone) -> String {
     let mut s = String::new();
-    s.push_str(&sclera(style, cx, cy));
+    s.push_str(&sclera(style, cx, cy, is_right));
     s.push_str(&iris(style, cx, cy, skin));
     s.push_str(&pupil(style, cx, cy));
-    s.push_str(&highlight(style, cx, cy));
+    s.push_str(&highlight(style, cx, cy, is_right));
     s.push_str(&eyelid(style, cx, cy, is_right));
     s
 }
 
-fn sclera(style: EyeStyle, cx: f32, cy: f32) -> String {
+fn sclera(style: EyeStyle, cx: f32, cy: f32, is_right: bool) -> String {
     let stroke = "#555555";
     match style {
         EyeStyle::Round => {
@@ -52,9 +52,12 @@ fn sclera(style: EyeStyle, cx: f32, cy: f32) -> String {
             )
         }
         EyeStyle::Cat => {
-            let inner = cx - 17.0;
-            let outer = cx + 19.0;
-            let outer_y = cy - 5.0;
+            // Outer corner lifts up and extends further; mirror for left vs right eye
+            let (inner, outer, outer_y) = if is_right {
+                (cx - 17.0, cx + 19.0, cy - 5.0)
+            } else {
+                (cx + 17.0, cx - 19.0, cy - 5.0)
+            };
             let top = cy - 13.0;
             let bot = cy + 9.0;
             format!(
@@ -119,11 +122,13 @@ fn pupil(style: EyeStyle, cx: f32, cy: f32) -> String {
     )
 }
 
-fn highlight(style: EyeStyle, cx: f32, cy: f32) -> String {
+fn highlight(style: EyeStyle, cx: f32, cy: f32, is_right: bool) -> String {
     let (dx, dy, r) = match style {
         EyeStyle::Wide => (4.0, -4.0, 3.5),
         _ => (3.0, -3.0, 2.5),
     };
+    // Highlight on the outer-upper side of each eye (mirrored)
+    let dx = if is_right { dx } else { -dx };
     format!(
         r##"  <circle cx="{}" cy="{}" r="{r}" fill="white" opacity="0.9"/>
 "##,
@@ -154,11 +159,14 @@ fn eyelid(style: EyeStyle, cx: f32, cy: f32, is_right: bool) -> String {
             )
         }
         EyeStyle::Cat => {
-            let inner = cx - 17.0;
-            let outer = cx + 19.0;
-            let outer_y = cy - 5.0;
+            // Mirror the eyelid shape for left vs right eye
+            let (inner, outer, outer_y) = if is_right {
+                (cx - 17.0, cx + 19.0, cy - 5.0)
+            } else {
+                (cx + 17.0, cx - 19.0, cy - 5.0)
+            };
             let top = cy - 14.0;
-            let flick_x = if is_right { outer + 4.0 } else { outer + 3.0 };
+            let flick_x = if is_right { outer + 4.0 } else { outer - 4.0 };
             let flick_y = outer_y - 4.0;
             format!(
                 r##"  <path d="M {inner} {cy} Q {cx} {top} {outer} {outer_y} L {flick_x} {flick_y}" fill="none" stroke="{line_color}" stroke-width="2" stroke-linecap="round"/>

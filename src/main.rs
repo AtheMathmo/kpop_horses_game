@@ -3,7 +3,7 @@ use kpop_horse::{assets, assets::Palette, game};
 
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Palette::MidnightBlue.into()))
+        .insert_resource(ClearColor(Palette::SoftLavender.into()))
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
