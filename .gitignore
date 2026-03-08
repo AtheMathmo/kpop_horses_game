@@ -1,0 +1,8 @@
+output/
+debug/
+/target
+.vscode
+.claude/settings.local.json
+Cargo.lock
+.DS_Store
+assets/*

@@ -1,0 +1,11 @@
+[package]
+name = "face_gen"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "face_gen"
+path = "src/main.rs"
+
+[dependencies]
+resvg = "0.45"
