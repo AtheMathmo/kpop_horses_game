@@ -628,7 +628,8 @@ fn spawn_horse_sprites(
         (HorseLayer::Body, 0.0),
         (HorseLayer::Markings, 1.0),
         (HorseLayer::Mane, 2.0),
-        (HorseLayer::Tack, 3.0),
+        (HorseLayer::BodyFront, 3.0),
+        (HorseLayer::Tack, 4.0),
     ];
 
     commands
@@ -673,6 +674,9 @@ fn horse_layer_asset_path(layer: HorseLayer, selections: &HorseSelections) -> St
             selections.coat_colour.label()
         ),
         HorseLayer::Mane => format!("horses/mane/{}.png", selections.mane.label()),
+        HorseLayer::BodyFront => {
+            format!("horses/body_front/{}.png", selections.coat_colour.label())
+        }
         HorseLayer::Tack => format!("horses/tack/{}.png", selections.tack.label()),
     }
 }

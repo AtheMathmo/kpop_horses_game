@@ -341,6 +341,19 @@ fn export_horse_layer_pngs(base: &Path) {
         }
     }
 
+    // BodyFront (near ear + face details): one per CoatColour
+    let dir = base.join("body_front");
+    fs::create_dir_all(&dir).expect("create horse body_front dir");
+    for colour in ALL_COAT_COLOURS {
+        let config = HorseConfig {
+            coat_colour: *colour,
+            ..default_config
+        };
+        let svg = generate_horse_layer_svg(&config, HorseLayer::BodyFront);
+        write_layer_png(&dir, colour.label(), &svg, png_w, png_h);
+        println!("  horse/body_front/{}", colour.label());
+    }
+
     // Mane: one per ManeStyle
     let dir = base.join("mane");
     fs::create_dir_all(&dir).expect("create horse mane dir");

@@ -89,12 +89,12 @@ pub enum FaceLayer {
 // ---------------------------------------------------------------------------
 
 /// Canvas dimensions for horse sprites.
-pub const HORSE_W: f32 = 400.0;
-pub const HORSE_H: f32 = 380.0;
+pub const HORSE_W: f32 = 500.0;
+pub const HORSE_H: f32 = 400.0;
 
-/// Center of the horse on the canvas.
+/// Approximate center of the horse body on the canvas.
 pub const HORSE_CX: f32 = HORSE_W / 2.0;
-pub const HORSE_CY: f32 = HORSE_H / 2.0 + 20.0;
+pub const HORSE_CY: f32 = HORSE_H / 2.0;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum CoatColour {
@@ -141,6 +141,8 @@ pub enum HorseLayer {
     Body,
     Markings,
     Mane,
+    /// Near ear and face details — rendered in front of the mane.
+    BodyFront,
     Tack,
 }
 
@@ -557,13 +559,14 @@ pub fn generate_horse_svg(config: &HorseConfig) -> String {
     let mut body = String::with_capacity(4096);
     body.push_str(&horse_defs(config));
 
-    // Layer order: body → markings → mane → tack
+    // Layer order: body → markings → mane → body-front (ear/face) → tack
     body.push_str(&horse_body::body_svg(config.coat_colour));
     body.push_str(&horse_body::markings_svg(
         config.coat_style,
         config.coat_colour,
     ));
     body.push_str(&horse_mane::mane_svg(config.mane));
+    body.push_str(&horse_body::body_front_svg(config.coat_colour));
     body.push_str(&horse_tack::tack_svg(config.tack));
 
     wrap_horse_svg(&body)
@@ -583,6 +586,7 @@ pub fn generate_horse_layer_svg(config: &HorseConfig, layer: HorseLayer) -> Stri
             ));
         }
         HorseLayer::Mane => body.push_str(&horse_mane::mane_svg(config.mane)),
+        HorseLayer::BodyFront => body.push_str(&horse_body::body_front_svg(config.coat_colour)),
         HorseLayer::Tack => body.push_str(&horse_tack::tack_svg(config.tack)),
     }
 
@@ -643,7 +647,7 @@ fn horse_defs(config: &HorseConfig) -> String {
 
     format!(
         r##"<defs>
-  <radialGradient id="coat-grad" cx="45%" cy="35%" r="65%">
+  <radialGradient id="coat-grad" gradientUnits="userSpaceOnUse" cx="200" cy="140" r="260">
     <stop offset="0%" stop-color="{coat}"/>
     <stop offset="100%" stop-color="{shadow}"/>
   </radialGradient>
