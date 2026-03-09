@@ -128,13 +128,19 @@ pub enum ManeStyle {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub enum TackStyle {
+pub enum SaddleStyle {
     #[default]
     None,
-    WesternSaddle,
-    EnglishSaddle,
+    Western,
+    English,
     Blanket,
-    Bridle,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum BridleStyle {
+    #[default]
+    None,
+    Standard,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -155,7 +161,10 @@ pub enum HorseLayer {
     Mane,
     /// Near ear and face details — rendered in front of the mane.
     BodyFront,
-    Tack,
+    /// Saddle/blanket — rendered on top of the coat.
+    Saddle,
+    /// Bridle — rendered on top of the saddle layer.
+    Bridle,
 }
 
 impl CoatColour {
@@ -244,24 +253,38 @@ impl ManeStyle {
     }
 }
 
-impl TackStyle {
+impl SaddleStyle {
     pub fn label(self) -> &'static str {
         match self {
             Self::None => "none",
-            Self::WesternSaddle => "western",
-            Self::EnglishSaddle => "english",
+            Self::Western => "western",
+            Self::English => "english",
             Self::Blanket => "blanket",
-            Self::Bridle => "bridle",
         }
     }
 
     pub fn display(self) -> &'static str {
         match self {
             Self::None => "None",
-            Self::WesternSaddle => "Western Saddle",
-            Self::EnglishSaddle => "English Saddle",
+            Self::Western => "Western Saddle",
+            Self::English => "English Saddle",
             Self::Blanket => "Blanket",
-            Self::Bridle => "Bridle",
+        }
+    }
+}
+
+impl BridleStyle {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Standard => "standard",
+        }
+    }
+
+    pub fn display(self) -> &'static str {
+        match self {
+            Self::None => "None",
+            Self::Standard => "Standard",
         }
     }
 }
@@ -310,13 +333,14 @@ pub const ALL_MANE_STYLES: &[ManeStyle] = &[
     ManeStyle::Mohawk,
 ];
 
-pub const ALL_TACK_STYLES: &[TackStyle] = &[
-    TackStyle::None,
-    TackStyle::WesternSaddle,
-    TackStyle::EnglishSaddle,
-    TackStyle::Blanket,
-    TackStyle::Bridle,
+pub const ALL_SADDLE_STYLES: &[SaddleStyle] = &[
+    SaddleStyle::None,
+    SaddleStyle::Western,
+    SaddleStyle::English,
+    SaddleStyle::Blanket,
 ];
+
+pub const ALL_BRIDLE_STYLES: &[BridleStyle] = &[BridleStyle::None, BridleStyle::Standard];
 
 pub const ALL_TAIL_STYLES: &[TailStyle] = &[
     TailStyle::Plain,
@@ -344,6 +368,17 @@ impl SkinTone {
             Self::Tan => "#966838",
             Self::Dark => "#5C2E22",
             Self::Pale => "#E8D8CC",
+        }
+    }
+
+    /// A lighter highlight for gradient depth (forehead/nose catch-light).
+    pub fn highlight_hex(self) -> &'static str {
+        match self {
+            Self::Light => "#FFF0D8",
+            Self::Medium => "#E8BC8E",
+            Self::Tan => "#CCA070",
+            Self::Dark => "#906050",
+            Self::Pale => "#FFFFF5",
         }
     }
 }
@@ -462,6 +497,67 @@ impl SkinTone {
 // All variants (for iteration)
 // ---------------------------------------------------------------------------
 
+/// Key skull measurements that hair styles use to position themselves.
+#[derive(Clone, Copy, Debug)]
+pub struct HairMetrics {
+    /// Y coordinate of the very top of the skull.
+    pub top_y: f32,
+    /// Half-width of the face at temple level (widest point hair must cover).
+    pub side_x: f32,
+    /// Y coordinate of the crown (highest visible point of skull curve).
+    pub crown_y: f32,
+    /// Y coordinate at ear/temple level — where the hair cap's side edges sit.
+    pub side_y: f32,
+    /// Half-width of the face at crown level. Zero for elliptical faces (point at top),
+    /// positive for the square face (flat top with rounded corners).
+    pub crown_rx: f32,
+}
+
+impl FaceShape {
+    /// Returns metrics describing the skull outline for hair positioning.
+    pub fn hair_metrics(self) -> HairMetrics {
+        match self {
+            FaceShape::Oval => HairMetrics {
+                top_y: FACE_CY - 115.0,
+                side_x: 85.0,
+                crown_y: FACE_CY - 115.0,
+                side_y: FACE_CY - 30.0,
+                crown_rx: 0.0,
+            },
+            FaceShape::Round => HairMetrics {
+                top_y: FACE_CY - 100.0,
+                side_x: 90.0,
+                crown_y: FACE_CY - 100.0,
+                side_y: FACE_CY - 20.0,
+                crown_rx: 0.0,
+            },
+            FaceShape::Square => HairMetrics {
+                top_y: FACE_CY - 110.0,
+                side_x: 85.0,
+                crown_y: FACE_CY - 110.0,
+                side_y: FACE_CY - 25.0,
+                // Wide flat crown to cover the rounded-rect corners (rx=32).
+                // The cap's narrow side arcs handle the remaining transition.
+                crown_rx: 78.0,
+            },
+            FaceShape::Heart => HairMetrics {
+                top_y: FACE_CY - 105.0,
+                side_x: 88.0,
+                crown_y: FACE_CY - 105.0,
+                side_y: FACE_CY - 30.0,
+                crown_rx: 0.0,
+            },
+            FaceShape::Long => HairMetrics {
+                top_y: FACE_CY - 125.0,
+                side_x: 78.0,
+                crown_y: FACE_CY - 125.0,
+                side_y: FACE_CY - 35.0,
+                crown_rx: 0.0,
+            },
+        }
+    }
+}
+
 pub const ALL_FACE_SHAPES: &[FaceShape] = &[
     FaceShape::Oval,
     FaceShape::Round,
@@ -524,11 +620,12 @@ pub fn generate_face_svg(config: &FaceConfig) -> String {
     body.push_str(&svg_defs(config));
 
     // Layer order: hair-back → face → eyes → mouth → hair-front
-    body.push_str(&hair::hair_back_svg(config.hair));
+    let hm = config.face.hair_metrics();
+    body.push_str(&hair::hair_back_svg(config.hair, hm));
     body.push_str(&face::face_svg(config.face, config.skin));
     body.push_str(&eyes::eyes_svg(config.eyes, config.skin));
     body.push_str(&mouth::mouth_svg(config.mouth));
-    body.push_str(&hair::hair_front_svg(config.hair));
+    body.push_str(&hair::hair_front_svg(config.hair, hm));
 
     wrap_svg(&body)
 }
@@ -538,6 +635,7 @@ pub fn generate_component_svg(config: &FaceConfig, component: &str) -> String {
     let mut body = String::with_capacity(2048);
     body.push_str(&svg_defs(config));
 
+    let hm = config.face.hair_metrics();
     match component {
         "face" => body.push_str(&face::face_svg(config.face, config.skin)),
         "eyes" => {
@@ -545,9 +643,9 @@ pub fn generate_component_svg(config: &FaceConfig, component: &str) -> String {
             body.push_str(&eyes::eyes_svg(config.eyes, config.skin));
         }
         "hair" => {
-            body.push_str(&hair::hair_back_svg(config.hair));
+            body.push_str(&hair::hair_back_svg(config.hair, hm));
             body.push_str(&face::face_svg(config.face, config.skin));
-            body.push_str(&hair::hair_front_svg(config.hair));
+            body.push_str(&hair::hair_front_svg(config.hair, hm));
         }
         "mouth" => {
             body.push_str(&face::face_svg(config.face, config.skin));
@@ -564,20 +662,29 @@ pub fn generate_layer_svg(config: &FaceConfig, layer: FaceLayer) -> String {
     let mut body = String::with_capacity(2048);
     body.push_str(&svg_defs(config));
 
+    let hm = config.face.hair_metrics();
     match layer {
-        FaceLayer::HairBack => body.push_str(&hair::hair_back_svg(config.hair)),
+        FaceLayer::HairBack => body.push_str(&hair::hair_back_svg(config.hair, hm)),
         FaceLayer::Face => body.push_str(&face::face_svg(config.face, config.skin)),
         FaceLayer::Eyes => body.push_str(&eyes::eyes_svg(config.eyes, config.skin)),
         FaceLayer::Mouth => body.push_str(&mouth::mouth_svg(config.mouth)),
-        FaceLayer::HairFront => body.push_str(&hair::hair_front_svg(config.hair)),
+        FaceLayer::HairFront => body.push_str(&hair::hair_front_svg(config.hair, hm)),
     }
 
     wrap_svg(&body)
 }
 
-/// Returns true if the given hair style has a front layer (bangs overlay).
+/// Returns true if the given hair style has a front layer (bangs overlay, fringe, etc.).
 pub fn has_front_layer(style: HairStyle) -> bool {
-    style == HairStyle::Bangs
+    // All styles now have a front layer — Short, Ponytail, Spiky were always front-only;
+    // Long and Bangs gained front fringe layers.
+    match style {
+        HairStyle::Short
+        | HairStyle::Long
+        | HairStyle::Ponytail
+        | HairStyle::Spiky
+        | HairStyle::Bangs => true,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -590,7 +697,8 @@ pub struct HorseConfig {
     pub coat_colour: CoatColour,
     pub coat_style: CoatStyle,
     pub mane: ManeStyle,
-    pub tack: TackStyle,
+    pub saddle: SaddleStyle,
+    pub bridle: BridleStyle,
     pub tail: TailStyle,
 }
 
@@ -599,7 +707,7 @@ pub fn generate_horse_svg(config: &HorseConfig) -> String {
     let mut body = String::with_capacity(4096);
     body.push_str(&horse_defs(config));
 
-    // Layer order: tail → body → markings → mane → body-front (ear/face) → tack
+    // Layer order: tail → body → markings → mane → body-front (ear/face) → saddle → bridle
     body.push_str(&horse_tail::tail_svg(config.tail));
     body.push_str(&horse_body::body_svg(config.coat_colour));
     body.push_str(&horse_body::markings_svg(
@@ -608,7 +716,8 @@ pub fn generate_horse_svg(config: &HorseConfig) -> String {
     ));
     body.push_str(&horse_mane::mane_svg(config.mane));
     body.push_str(&horse_body::body_front_svg(config.coat_colour));
-    body.push_str(&horse_tack::tack_svg(config.tack));
+    body.push_str(&horse_tack::saddle_svg(config.saddle));
+    body.push_str(&horse_tack::bridle_svg(config.bridle));
 
     wrap_horse_svg(&body)
 }
@@ -629,7 +738,8 @@ pub fn generate_horse_layer_svg(config: &HorseConfig, layer: HorseLayer) -> Stri
         }
         HorseLayer::Mane => body.push_str(&horse_mane::mane_svg(config.mane)),
         HorseLayer::BodyFront => body.push_str(&horse_body::body_front_svg(config.coat_colour)),
-        HorseLayer::Tack => body.push_str(&horse_tack::tack_svg(config.tack)),
+        HorseLayer::Saddle => body.push_str(&horse_tack::saddle_svg(config.saddle)),
+        HorseLayer::Bridle => body.push_str(&horse_tack::bridle_svg(config.bridle)),
     }
 
     wrap_horse_svg(&body)
@@ -640,9 +750,14 @@ pub fn has_markings(style: CoatStyle) -> bool {
     style != CoatStyle::Plain
 }
 
-/// Returns true if the horse has visible tack.
-pub fn has_tack(style: TackStyle) -> bool {
-    style != TackStyle::None
+/// Returns true if the horse has a visible saddle/blanket.
+pub fn has_saddle(style: SaddleStyle) -> bool {
+    style != SaddleStyle::None
+}
+
+/// Returns true if the horse has a visible bridle.
+pub fn has_bridle(style: BridleStyle) -> bool {
+    style != BridleStyle::None
 }
 
 fn wrap_svg(body: &str) -> String {
@@ -664,13 +779,24 @@ fn wrap_horse_svg(body: &str) -> String {
 fn svg_defs(config: &FaceConfig) -> String {
     let skin = config.skin.hex();
     let shadow = config.skin.shadow_hex();
+    let highlight = config.skin.highlight_hex();
 
     format!(
         r##"<defs>
-  <radialGradient id="face-grad" cx="40%" cy="35%" r="60%">
-    <stop offset="0%" stop-color="{skin}"/>
+  <radialGradient id="face-grad" cx="45%" cy="30%" r="65%">
+    <stop offset="0%" stop-color="{highlight}"/>
+    <stop offset="40%" stop-color="{skin}"/>
     <stop offset="100%" stop-color="{shadow}"/>
   </radialGradient>
+  <radialGradient id="nose-highlight" cx="50%" cy="42%" r="18%">
+    <stop offset="0%" stop-color="{highlight}" stop-opacity="0.4"/>
+    <stop offset="100%" stop-color="{highlight}" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="jaw-shadow" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="{shadow}" stop-opacity="0"/>
+    <stop offset="60%" stop-color="{shadow}" stop-opacity="0"/>
+    <stop offset="100%" stop-color="{shadow}" stop-opacity="0.35"/>
+  </linearGradient>
   <radialGradient id="cheek-grad" cx="50%" cy="50%" r="50%">
     <stop offset="0%" stop-color="#FF8888" stop-opacity="0.35"/>
     <stop offset="100%" stop-color="#FF8888" stop-opacity="0"/>

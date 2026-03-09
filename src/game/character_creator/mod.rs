@@ -4,10 +4,11 @@ use bevy::prelude::*;
 
 use crate::assets::Palette;
 use face_gen::{
-    ALL_COAT_COLOURS, ALL_COAT_STYLES, ALL_EYE_STYLES, ALL_FACE_SHAPES, ALL_HAIR_STYLES,
-    ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SKIN_TONES, ALL_TACK_STYLES, ALL_TAIL_STYLES,
-    CoatColour, CoatStyle, EyeStyle, FaceLayer, FaceShape, HairStyle, HorseLayer, ManeStyle,
-    MouthStyle, SkinTone, TackStyle, TailStyle, has_markings, has_tack,
+    ALL_BRIDLE_STYLES, ALL_COAT_COLOURS, ALL_COAT_STYLES, ALL_EYE_STYLES, ALL_FACE_SHAPES,
+    ALL_HAIR_STYLES, ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SADDLE_STYLES, ALL_SKIN_TONES,
+    ALL_TAIL_STYLES, BridleStyle, CoatColour, CoatStyle, EyeStyle, FaceLayer, FaceShape, HairStyle,
+    HorseLayer, ManeStyle, MouthStyle, SaddleStyle, SkinTone, TailStyle, has_bridle, has_markings,
+    has_saddle,
 };
 
 // ---------------------------------------------------------------------------
@@ -156,12 +157,24 @@ impl Cyclable for ManeStyle {
     }
 }
 
-impl Cyclable for TackStyle {
+impl Cyclable for SaddleStyle {
     fn variants() -> &'static [Self] {
-        ALL_TACK_STYLES
+        ALL_SADDLE_STYLES
     }
     fn index(&self) -> usize {
-        ALL_TACK_STYLES.iter().position(|v| v == self).unwrap()
+        ALL_SADDLE_STYLES.iter().position(|v| v == self).unwrap()
+    }
+    fn display_label(&self) -> &'static str {
+        self.display()
+    }
+}
+
+impl Cyclable for BridleStyle {
+    fn variants() -> &'static [Self] {
+        ALL_BRIDLE_STYLES
+    }
+    fn index(&self) -> usize {
+        ALL_BRIDLE_STYLES.iter().position(|v| v == self).unwrap()
     }
     fn display_label(&self) -> &'static str {
         self.display()
@@ -196,7 +209,8 @@ pub struct HorseSelections {
     pub coat_colour: CoatColour,
     pub coat_style: CoatStyle,
     pub mane: ManeStyle,
-    pub tack: TackStyle,
+    pub saddle: SaddleStyle,
+    pub bridle: BridleStyle,
     pub tail: TailStyle,
 }
 
@@ -222,7 +236,8 @@ pub enum ActiveCategory {
     CoatColour,
     CoatStyle,
     Mane,
-    Tack,
+    Saddle,
+    Bridle,
     Tail,
 }
 
@@ -237,7 +252,8 @@ impl ActiveCategory {
             Self::CoatColour => "Coat Colour",
             Self::CoatStyle => "Coat Style",
             Self::Mane => "Mane Style",
-            Self::Tack => "Tack",
+            Self::Saddle => "Saddle",
+            Self::Bridle => "Bridle",
             Self::Tail => "Tail Style",
         }
     }
@@ -255,7 +271,8 @@ const HORSE_CATEGORIES: &[ActiveCategory] = &[
     ActiveCategory::CoatColour,
     ActiveCategory::CoatStyle,
     ActiveCategory::Mane,
-    ActiveCategory::Tack,
+    ActiveCategory::Saddle,
+    ActiveCategory::Bridle,
     ActiveCategory::Tail,
 ];
 
@@ -615,7 +632,11 @@ fn spawn_face_sprites(
 
 fn face_layer_asset_path(layer: FaceLayer, selections: &CharacterSelections) -> String {
     match layer {
-        FaceLayer::HairBack => format!("faces/hair_back/{}.png", selections.hair.label()),
+        FaceLayer::HairBack => format!(
+            "faces/hair_back/{}_{}.png",
+            selections.hair.label(),
+            selections.face.label()
+        ),
         FaceLayer::Face => format!(
             "faces/face/{}_{}.png",
             selections.face.label(),
@@ -627,7 +648,11 @@ fn face_layer_asset_path(layer: FaceLayer, selections: &CharacterSelections) -> 
             selections.skin.label()
         ),
         FaceLayer::Mouth => format!("faces/mouth/{}.png", selections.mouth.label()),
-        FaceLayer::HairFront => format!("faces/hair_front/{}.png", selections.hair.label()),
+        FaceLayer::HairFront => format!(
+            "faces/hair_front/{}_{}.png",
+            selections.hair.label(),
+            selections.face.label()
+        ),
     }
 }
 
@@ -646,7 +671,8 @@ fn spawn_horse_sprites(
         (HorseLayer::Markings, 1.0),
         (HorseLayer::Mane, 2.0),
         (HorseLayer::BodyFront, 3.0),
-        (HorseLayer::Tack, 4.0),
+        (HorseLayer::Saddle, 4.0),
+        (HorseLayer::Bridle, 5.0),
     ];
 
     commands
@@ -659,7 +685,8 @@ fn spawn_horse_sprites(
             for (layer, z) in layers {
                 let show = match layer {
                     HorseLayer::Markings => has_markings(selections.coat_style),
-                    HorseLayer::Tack => has_tack(selections.tack),
+                    HorseLayer::Saddle => has_saddle(selections.saddle),
+                    HorseLayer::Bridle => has_bridle(selections.bridle),
                     _ => true,
                 };
 
@@ -695,7 +722,8 @@ fn horse_layer_asset_path(layer: HorseLayer, selections: &HorseSelections) -> St
         HorseLayer::BodyFront => {
             format!("horses/body_front/{}.png", selections.coat_colour.label())
         }
-        HorseLayer::Tack => format!("horses/tack/{}.png", selections.tack.label()),
+        HorseLayer::Saddle => format!("horses/saddle/{}.png", selections.saddle.label()),
+        HorseLayer::Bridle => format!("horses/bridle/{}.png", selections.bridle.label()),
     }
 }
 
@@ -748,7 +776,8 @@ fn on_prev_click(
         ActiveCategory::CoatColour => horse_sel.coat_colour = horse_sel.coat_colour.prev(),
         ActiveCategory::CoatStyle => horse_sel.coat_style = horse_sel.coat_style.prev(),
         ActiveCategory::Mane => horse_sel.mane = horse_sel.mane.prev(),
-        ActiveCategory::Tack => horse_sel.tack = horse_sel.tack.prev(),
+        ActiveCategory::Saddle => horse_sel.saddle = horse_sel.saddle.prev(),
+        ActiveCategory::Bridle => horse_sel.bridle = horse_sel.bridle.prev(),
         ActiveCategory::Tail => horse_sel.tail = horse_sel.tail.prev(),
     }
 }
@@ -768,7 +797,8 @@ fn on_next_click(
         ActiveCategory::CoatColour => horse_sel.coat_colour = horse_sel.coat_colour.next(),
         ActiveCategory::CoatStyle => horse_sel.coat_style = horse_sel.coat_style.next(),
         ActiveCategory::Mane => horse_sel.mane = horse_sel.mane.next(),
-        ActiveCategory::Tack => horse_sel.tack = horse_sel.tack.next(),
+        ActiveCategory::Saddle => horse_sel.saddle = horse_sel.saddle.next(),
+        ActiveCategory::Bridle => horse_sel.bridle = horse_sel.bridle.next(),
         ActiveCategory::Tail => horse_sel.tail = horse_sel.tail.next(),
     }
 }
@@ -780,7 +810,7 @@ fn on_done_click(
 ) {
     info!(
         "Character ready! Face: {}, Eyes: {}, Hair: {}, Mouth: {}, Skin: {} | \
-         Horse: Coat: {} ({}), Mane: {}, Tack: {}, Tail: {}",
+         Horse: Coat: {} ({}), Mane: {}, Saddle: {}, Bridle: {}, Tail: {}",
         selections.face.display(),
         selections.eyes.display(),
         selections.hair.display(),
@@ -789,7 +819,8 @@ fn on_done_click(
         horse_sel.coat_colour.display(),
         horse_sel.coat_style.display(),
         horse_sel.mane.display(),
-        horse_sel.tack.display(),
+        horse_sel.saddle.display(),
+        horse_sel.bridle.display(),
         horse_sel.tail.display(),
     );
 }
@@ -866,7 +897,8 @@ fn update_labels(
         ActiveCategory::CoatColour => horse_sel.coat_colour.display_label(),
         ActiveCategory::CoatStyle => horse_sel.coat_style.display_label(),
         ActiveCategory::Mane => horse_sel.mane.display_label(),
-        ActiveCategory::Tack => horse_sel.tack.display_label(),
+        ActiveCategory::Saddle => horse_sel.saddle.display_label(),
+        ActiveCategory::Bridle => horse_sel.bridle.display_label(),
         ActiveCategory::Tail => horse_sel.tail.display_label(),
     };
 
@@ -966,7 +998,8 @@ fn update_horse_preview(
     for (layer, mut sprite, mut vis) in &mut query {
         let show = match layer.0 {
             HorseLayer::Markings => has_markings(selections.coat_style),
-            HorseLayer::Tack => has_tack(selections.tack),
+            HorseLayer::Saddle => has_saddle(selections.saddle),
+            HorseLayer::Bridle => has_bridle(selections.bridle),
             _ => true,
         };
 

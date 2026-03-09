@@ -8,11 +8,11 @@ use std::fs;
 use std::path::Path;
 
 use face_gen::{
-    ALL_COAT_COLOURS, ALL_COAT_STYLES, ALL_EYE_STYLES, ALL_FACE_SHAPES, ALL_HAIR_STYLES,
-    ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SKIN_TONES, ALL_TACK_STYLES, ALL_TAIL_STYLES, CANVAS_H,
-    CANVAS_W, FaceConfig, FaceLayer, HORSE_H, HORSE_W, HorseConfig, HorseLayer,
-    generate_component_svg, generate_face_svg, generate_horse_layer_svg, generate_layer_svg,
-    has_markings, has_tack, rasterize_svg_to_png,
+    ALL_BRIDLE_STYLES, ALL_COAT_COLOURS, ALL_COAT_STYLES, ALL_EYE_STYLES, ALL_FACE_SHAPES,
+    ALL_HAIR_STYLES, ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SADDLE_STYLES, ALL_SKIN_TONES,
+    ALL_TAIL_STYLES, CANVAS_H, CANVAS_W, FaceConfig, FaceLayer, HORSE_H, HORSE_W, HorseConfig,
+    HorseLayer, generate_component_svg, generate_face_svg, generate_horse_layer_svg,
+    generate_layer_svg, has_bridle, has_markings, has_saddle, rasterize_svg_to_png,
 };
 
 const OUTPUT_DIR: &str = "output";
@@ -228,17 +228,21 @@ fn export_layer_pngs(base: &Path) {
     let png_w = CANVAS_W as u32 * PNG_SCALE;
     let png_h = CANVAS_H as u32 * PNG_SCALE;
 
-    // Hair back: one per HairStyle (skin-independent)
+    // Hair back: one per (HairStyle, FaceShape) — hair adapts to skull dimensions
     let dir = base.join("hair_back");
     fs::create_dir_all(&dir).expect("create hair_back dir");
     for style in ALL_HAIR_STYLES {
-        let config = FaceConfig {
-            hair: *style,
-            ..default_config
-        };
-        let svg = generate_layer_svg(&config, FaceLayer::HairBack);
-        write_layer_png(&dir, style.label(), &svg, png_w, png_h);
-        println!("  hair_back/{}", style.label());
+        for shape in ALL_FACE_SHAPES {
+            let config = FaceConfig {
+                hair: *style,
+                face: *shape,
+                ..default_config
+            };
+            let svg = generate_layer_svg(&config, FaceLayer::HairBack);
+            let name = format!("{}_{}", style.label(), shape.label());
+            write_layer_png(&dir, &name, &svg, png_w, png_h);
+            println!("  hair_back/{name}");
+        }
     }
 
     // Face: one per (FaceShape, SkinTone)
@@ -288,17 +292,21 @@ fn export_layer_pngs(base: &Path) {
         println!("  mouth/{}", style.label());
     }
 
-    // Hair front: all styles (empty ones produce a transparent PNG)
+    // Hair front: one per (HairStyle, FaceShape) — hair adapts to skull dimensions
     let dir = base.join("hair_front");
     fs::create_dir_all(&dir).expect("create hair_front dir");
     for style in ALL_HAIR_STYLES {
-        let config = FaceConfig {
-            hair: *style,
-            ..default_config
-        };
-        let svg = generate_layer_svg(&config, FaceLayer::HairFront);
-        write_layer_png(&dir, style.label(), &svg, png_w, png_h);
-        println!("  hair_front/{}", style.label());
+        for shape in ALL_FACE_SHAPES {
+            let config = FaceConfig {
+                hair: *style,
+                face: *shape,
+                ..default_config
+            };
+            let svg = generate_layer_svg(&config, FaceLayer::HairFront);
+            let name = format!("{}_{}", style.label(), shape.label());
+            write_layer_png(&dir, &name, &svg, png_w, png_h);
+            println!("  hair_front/{name}");
+        }
     }
 }
 
@@ -367,20 +375,36 @@ fn export_horse_layer_pngs(base: &Path) {
         println!("  horse/mane/{}", style.label());
     }
 
-    // Tack: one per TackStyle, skip None
-    let dir = base.join("tack");
-    fs::create_dir_all(&dir).expect("create horse tack dir");
-    for style in ALL_TACK_STYLES {
-        if !has_tack(*style) {
+    // Saddle: one per SaddleStyle, skip None
+    let dir = base.join("saddle");
+    fs::create_dir_all(&dir).expect("create horse saddle dir");
+    for style in ALL_SADDLE_STYLES {
+        if !has_saddle(*style) {
             continue;
         }
         let config = HorseConfig {
-            tack: *style,
+            saddle: *style,
             ..default_config
         };
-        let svg = generate_horse_layer_svg(&config, HorseLayer::Tack);
+        let svg = generate_horse_layer_svg(&config, HorseLayer::Saddle);
         write_layer_png(&dir, style.label(), &svg, png_w, png_h);
-        println!("  horse/tack/{}", style.label());
+        println!("  horse/saddle/{}", style.label());
+    }
+
+    // Bridle: one per BridleStyle, skip None
+    let dir = base.join("bridle");
+    fs::create_dir_all(&dir).expect("create horse bridle dir");
+    for style in ALL_BRIDLE_STYLES {
+        if !has_bridle(*style) {
+            continue;
+        }
+        let config = HorseConfig {
+            bridle: *style,
+            ..default_config
+        };
+        let svg = generate_horse_layer_svg(&config, HorseLayer::Bridle);
+        write_layer_png(&dir, style.label(), &svg, png_w, png_h);
+        println!("  horse/bridle/{}", style.label());
     }
 
     // Tail: one per TailStyle

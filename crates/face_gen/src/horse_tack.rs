@@ -6,7 +6,7 @@
 //! - Head center: ≈(85, 90)
 //! - Muzzle/nose: ≈(50, 122)
 
-use crate::TackStyle;
+use crate::{BridleStyle, SaddleStyle};
 
 const LEATHER_BROWN: &str = "#6B3A2A";
 const LEATHER_DARK: &str = "#4A2818";
@@ -15,14 +15,21 @@ const BLANKET_PURPLE: &str = "#6B1FA8";
 const BLANKET_GOLD: &str = "#FFD700";
 const BRIDLE_BLACK: &str = "#222222";
 
-/// Draw tack (saddle, bridle, blanket) on the horse.
-pub fn tack_svg(style: TackStyle) -> String {
+/// Draw saddle / blanket on the horse.
+pub fn saddle_svg(style: SaddleStyle) -> String {
     match style {
-        TackStyle::None => String::new(),
-        TackStyle::WesternSaddle => western_saddle(),
-        TackStyle::EnglishSaddle => english_saddle(),
-        TackStyle::Blanket => blanket(),
-        TackStyle::Bridle => bridle(),
+        SaddleStyle::None => String::new(),
+        SaddleStyle::Western => western_saddle(),
+        SaddleStyle::English => english_saddle(),
+        SaddleStyle::Blanket => blanket(),
+    }
+}
+
+/// Draw bridle (head harness + reins) on the horse.
+pub fn bridle_svg(style: BridleStyle) -> String {
+    match style {
+        BridleStyle::None => String::new(),
+        BridleStyle::Standard => bridle(),
     }
 }
 

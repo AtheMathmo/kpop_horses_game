@@ -3,10 +3,13 @@
 use crate::{FACE_CX, FACE_CY, FaceShape, SkinTone};
 
 pub fn face_svg(shape: FaceShape, skin: SkinTone) -> String {
-    let mut s = String::with_capacity(1024);
+    let mut s = String::with_capacity(2048);
 
     // Face outline with gradient fill
     s.push_str(&face_outline(shape));
+
+    // Nose highlight + jaw shadow, clipped to face shape
+    s.push_str(&face_overlays(shape));
 
     // Subtle cheek blush (reduced on dark skin)
     s.push_str(&cheeks(shape, skin));
@@ -21,57 +24,44 @@ fn face_outline(shape: FaceShape) -> String {
     match shape {
         FaceShape::Oval => {
             format!(
-                r#"  <ellipse cx="{FACE_CX}" cy="{FACE_CY}" rx="88" ry="118"
+                r#"  <ellipse cx="{FACE_CX}" cy="{FACE_CY}" rx="85" ry="115"
     fill="url(#face-grad)" stroke="none" filter="url(#soft-shadow)"/>
 "#
             )
         }
         FaceShape::Round => {
+            // Slightly elliptical so it's not a perfect circle — more natural
             format!(
-                r#"  <circle cx="{FACE_CX}" cy="{FACE_CY}" r="105"
+                r#"  <ellipse cx="{FACE_CX}" cy="{FACE_CY}" rx="90" ry="100"
     fill="url(#face-grad)" stroke="none" filter="url(#soft-shadow)"/>
 "#
             )
         }
         FaceShape::Square => {
-            let x = FACE_CX - 95.0;
-            let y = FACE_CY - 110.0;
+            let half_w = 85.0;
+            let half_h = 110.0;
+            let x = FACE_CX - half_w;
+            let y = FACE_CY - half_h;
             format!(
-                r#"  <rect x="{x}" y="{y}" width="190" height="220" rx="22" ry="22"
+                r#"  <rect x="{x}" y="{y}" width="{w}" height="{h}" rx="32" ry="32"
     fill="url(#face-grad)" stroke="none" filter="url(#soft-shadow)"/>
-"#
+"#,
+                w = half_w * 2.0,
+                h = half_h * 2.0,
             )
         }
         FaceShape::Heart => {
-            // Wider at forehead/cheeks, tapering to a narrow chin
-            let cx = FACE_CX;
-            let top_y = FACE_CY - 105.0;
-            let chin_y = FACE_CY + 120.0;
-            let wide = 95.0; // max half-width at cheekbone
+            // Wider at forehead/cheeks, tapering to a rounded chin
             format!(
-                r##"  <path d="M {cx} {chin_y}
-    C {chin_ctrl_lx} {chin_ctrl_y}, {left_wide} {cheek_y}, {left_wide} {upper_y}
-    C {left_wide} {top_ctrl_y}, {left_forehead} {top_y}, {cx} {top_y}
-    C {right_forehead} {top_y}, {right_wide} {top_ctrl_y}, {right_wide} {upper_y}
-    C {right_wide} {cheek_y}, {chin_ctrl_rx} {chin_ctrl_y}, {cx} {chin_y}
-    Z"
+                r##"  <path d="{path}"
     fill="url(#face-grad)" stroke="none" filter="url(#soft-shadow)"/>
 "##,
-                left_wide = cx - wide,
-                right_wide = cx + wide,
-                upper_y = FACE_CY - 40.0,
-                cheek_y = FACE_CY + 20.0,
-                chin_ctrl_lx = cx - 35.0,
-                chin_ctrl_rx = cx + 35.0,
-                chin_ctrl_y = FACE_CY + 80.0,
-                top_ctrl_y = FACE_CY - 85.0,
-                left_forehead = cx - 55.0,
-                right_forehead = cx + 55.0,
+                path = heart_path(),
             )
         }
         FaceShape::Long => {
             format!(
-                r#"  <ellipse cx="{FACE_CX}" cy="{FACE_CY}" rx="75" ry="135"
+                r#"  <ellipse cx="{FACE_CX}" cy="{FACE_CY}" rx="78" ry="125"
     fill="url(#face-grad)" stroke="none" filter="url(#soft-shadow)"/>
 "#
             )
@@ -79,13 +69,76 @@ fn face_outline(shape: FaceShape) -> String {
     }
 }
 
+/// Heart face path as a reusable string (used for outline, clip, and overlays).
+fn heart_path() -> String {
+    let cx = FACE_CX;
+    let top_y = FACE_CY - 105.0;
+    let chin_y = FACE_CY + 108.0; // pulled up slightly for rounder chin
+    let wide = 88.0;
+    format!(
+        "M {cx} {chin_y} \
+         C {chin_ctrl_lx} {chin_ctrl_y}, {left_wide} {cheek_y}, {left_wide} {upper_y} \
+         C {left_wide} {top_ctrl_y}, {left_forehead} {top_y}, {cx} {top_y} \
+         C {right_forehead} {top_y}, {right_wide} {top_ctrl_y}, {right_wide} {upper_y} \
+         C {right_wide} {cheek_y}, {chin_ctrl_rx} {chin_ctrl_y}, {cx} {chin_y} \
+         Z",
+        left_wide = cx - wide,
+        right_wide = cx + wide,
+        upper_y = FACE_CY - 40.0,
+        cheek_y = FACE_CY + 20.0,
+        // Wider chin control points → rounder chin curve
+        chin_ctrl_lx = cx - 50.0,
+        chin_ctrl_rx = cx + 50.0,
+        chin_ctrl_y = FACE_CY + 70.0,
+        top_ctrl_y = FACE_CY - 85.0,
+        left_forehead = cx - 50.0,
+        right_forehead = cx + 50.0,
+    )
+}
+
+/// Nose highlight + jaw shadow overlays, clipped to the face shape so gradients
+/// don't bleed outside non-elliptical faces (e.g. heart).
+fn face_overlays(shape: FaceShape) -> String {
+    let clip_shape = match shape {
+        FaceShape::Oval => format!(r#"<ellipse cx="{FACE_CX}" cy="{FACE_CY}" rx="85" ry="115"/>"#),
+        FaceShape::Round => format!(r#"<ellipse cx="{FACE_CX}" cy="{FACE_CY}" rx="90" ry="100"/>"#),
+        FaceShape::Square => {
+            let x = FACE_CX - 85.0;
+            let y = FACE_CY - 110.0;
+            format!(r#"<rect x="{x}" y="{y}" width="170" height="220" rx="32" ry="32"/>"#)
+        }
+        FaceShape::Heart => format!(r#"<path d="{}"/>"#, heart_path()),
+        FaceShape::Long => format!(r#"<ellipse cx="{FACE_CX}" cy="{FACE_CY}" rx="78" ry="125"/>"#),
+    };
+
+    // Use a bounding rect for the overlay fills — the clip path constrains them
+    let (rx, ry) = match shape {
+        FaceShape::Oval => (85.0, 115.0),
+        FaceShape::Round => (90.0, 100.0),
+        FaceShape::Square => (85.0, 110.0),
+        FaceShape::Heart => (88.0, 110.0),
+        FaceShape::Long => (78.0, 125.0),
+    };
+
+    format!(
+        r##"  <clipPath id="face-clip">{clip_shape}</clipPath>
+  <g clip-path="url(#face-clip)">
+    <ellipse cx="{FACE_CX}" cy="{FACE_CY}" rx="{rx}" ry="{ry}"
+      fill="url(#nose-highlight)" stroke="none"/>
+    <ellipse cx="{FACE_CX}" cy="{FACE_CY}" rx="{rx}" ry="{ry}"
+      fill="url(#jaw-shadow)" stroke="none"/>
+  </g>
+"##
+    )
+}
+
 fn cheeks(shape: FaceShape, skin: SkinTone) -> String {
     let (rx, offset_y) = match shape {
-        FaceShape::Oval => (88.0, 20.0),
-        FaceShape::Round => (105.0, 15.0),
+        FaceShape::Oval => (85.0, 20.0),
+        FaceShape::Round => (90.0, 15.0),
         FaceShape::Square => (85.0, 15.0),
-        FaceShape::Heart => (80.0, 10.0),
-        FaceShape::Long => (70.0, 25.0),
+        FaceShape::Heart => (78.0, 10.0),
+        FaceShape::Long => (74.0, 22.0),
     };
 
     // Reduce blush visibility on darker skin tones
@@ -111,11 +164,11 @@ fn ears(shape: FaceShape, skin: SkinTone) -> String {
     let shadow = skin.shadow_hex();
 
     let (rx, ear_y) = match shape {
-        FaceShape::Oval => (88.0, FACE_CY - 10.0),
-        FaceShape::Round => (105.0, FACE_CY - 5.0),
-        FaceShape::Square => (95.0, FACE_CY - 15.0),
-        FaceShape::Heart => (90.0, FACE_CY - 10.0),
-        FaceShape::Long => (75.0, FACE_CY - 10.0),
+        FaceShape::Oval => (85.0, FACE_CY - 10.0),
+        FaceShape::Round => (90.0, FACE_CY - 5.0),
+        FaceShape::Square => (85.0, FACE_CY - 15.0),
+        FaceShape::Heart => (88.0, FACE_CY - 10.0),
+        FaceShape::Long => (78.0, FACE_CY - 10.0),
     };
 
     let left_x = FACE_CX - rx + 5.0;
