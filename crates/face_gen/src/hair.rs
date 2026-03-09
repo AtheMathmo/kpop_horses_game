@@ -224,7 +224,7 @@ fn spiky_front(m: HairMetrics) -> String {
 
     // Base band using the same quarter-arc + flat-crown approach as hair_cap
     let pad = 2.0;
-    let crown_pad = 4.0;
+    let crown_pad = 6.0;
     let outer_side_x = m.side_x + pad;
     let outer_crown_rx = m.crown_rx + pad;
     let crown_y = m.crown_y - crown_pad;
