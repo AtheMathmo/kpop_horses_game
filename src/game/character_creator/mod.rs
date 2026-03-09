@@ -5,9 +5,9 @@ use bevy::prelude::*;
 use crate::assets::Palette;
 use face_gen::{
     ALL_COAT_COLOURS, ALL_COAT_STYLES, ALL_EYE_STYLES, ALL_FACE_SHAPES, ALL_HAIR_STYLES,
-    ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SKIN_TONES, ALL_TACK_STYLES, CoatColour, CoatStyle,
-    EyeStyle, FaceLayer, FaceShape, HairStyle, HorseLayer, ManeStyle, MouthStyle, SkinTone,
-    TackStyle, has_markings, has_tack,
+    ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SKIN_TONES, ALL_TACK_STYLES, ALL_TAIL_STYLES,
+    CoatColour, CoatStyle, EyeStyle, FaceLayer, FaceShape, HairStyle, HorseLayer, ManeStyle,
+    MouthStyle, SkinTone, TackStyle, TailStyle, has_markings, has_tack,
 };
 
 // ---------------------------------------------------------------------------
@@ -168,6 +168,18 @@ impl Cyclable for TackStyle {
     }
 }
 
+impl Cyclable for TailStyle {
+    fn variants() -> &'static [Self] {
+        ALL_TAIL_STYLES
+    }
+    fn index(&self) -> usize {
+        ALL_TAIL_STYLES.iter().position(|v| v == self).unwrap()
+    }
+    fn display_label(&self) -> &'static str {
+        self.display()
+    }
+}
+
 /// Current character customisation selections.
 #[derive(Resource, Debug, Clone, Default)]
 pub struct CharacterSelections {
@@ -185,6 +197,7 @@ pub struct HorseSelections {
     pub coat_style: CoatStyle,
     pub mane: ManeStyle,
     pub tack: TackStyle,
+    pub tail: TailStyle,
 }
 
 /// Top-level tab: Character or Horse.
@@ -210,6 +223,7 @@ pub enum ActiveCategory {
     CoatStyle,
     Mane,
     Tack,
+    Tail,
 }
 
 impl ActiveCategory {
@@ -224,6 +238,7 @@ impl ActiveCategory {
             Self::CoatStyle => "Coat Style",
             Self::Mane => "Mane Style",
             Self::Tack => "Tack",
+            Self::Tail => "Tail Style",
         }
     }
 }
@@ -241,6 +256,7 @@ const HORSE_CATEGORIES: &[ActiveCategory] = &[
     ActiveCategory::CoatStyle,
     ActiveCategory::Mane,
     ActiveCategory::Tack,
+    ActiveCategory::Tail,
 ];
 
 // ---------------------------------------------------------------------------
@@ -625,6 +641,7 @@ fn spawn_horse_sprites(
     selections: Res<HorseSelections>,
 ) {
     let layers = [
+        (HorseLayer::Tail, -1.0),
         (HorseLayer::Body, 0.0),
         (HorseLayer::Markings, 1.0),
         (HorseLayer::Mane, 2.0),
@@ -667,6 +684,7 @@ fn spawn_horse_sprites(
 
 fn horse_layer_asset_path(layer: HorseLayer, selections: &HorseSelections) -> String {
     match layer {
+        HorseLayer::Tail => format!("horses/tail/{}.png", selections.tail.label()),
         HorseLayer::Body => format!("horses/body/{}.png", selections.coat_colour.label()),
         HorseLayer::Markings => format!(
             "horses/markings/{}_{}.png",
@@ -731,6 +749,7 @@ fn on_prev_click(
         ActiveCategory::CoatStyle => horse_sel.coat_style = horse_sel.coat_style.prev(),
         ActiveCategory::Mane => horse_sel.mane = horse_sel.mane.prev(),
         ActiveCategory::Tack => horse_sel.tack = horse_sel.tack.prev(),
+        ActiveCategory::Tail => horse_sel.tail = horse_sel.tail.prev(),
     }
 }
 
@@ -750,6 +769,7 @@ fn on_next_click(
         ActiveCategory::CoatStyle => horse_sel.coat_style = horse_sel.coat_style.next(),
         ActiveCategory::Mane => horse_sel.mane = horse_sel.mane.next(),
         ActiveCategory::Tack => horse_sel.tack = horse_sel.tack.next(),
+        ActiveCategory::Tail => horse_sel.tail = horse_sel.tail.next(),
     }
 }
 
@@ -760,7 +780,7 @@ fn on_done_click(
 ) {
     info!(
         "Character ready! Face: {}, Eyes: {}, Hair: {}, Mouth: {}, Skin: {} | \
-         Horse: Coat: {} ({}), Mane: {}, Tack: {}",
+         Horse: Coat: {} ({}), Mane: {}, Tack: {}, Tail: {}",
         selections.face.display(),
         selections.eyes.display(),
         selections.hair.display(),
@@ -770,6 +790,7 @@ fn on_done_click(
         horse_sel.coat_style.display(),
         horse_sel.mane.display(),
         horse_sel.tack.display(),
+        horse_sel.tail.display(),
     );
 }
 
@@ -846,6 +867,7 @@ fn update_labels(
         ActiveCategory::CoatStyle => horse_sel.coat_style.display_label(),
         ActiveCategory::Mane => horse_sel.mane.display_label(),
         ActiveCategory::Tack => horse_sel.tack.display_label(),
+        ActiveCategory::Tail => horse_sel.tail.display_label(),
     };
 
     for mut text in &mut opt_label {

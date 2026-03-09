@@ -8,6 +8,7 @@ mod hair;
 mod horse_body;
 mod horse_mane;
 mod horse_tack;
+mod horse_tail;
 mod mouth;
 mod render;
 
@@ -136,8 +137,19 @@ pub enum TackStyle {
     Bridle,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum TailStyle {
+    #[default]
+    Plain,
+    Flowers,
+    Braided,
+    Ribbons,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum HorseLayer {
+    /// Tail — rendered behind the body so the rump overlaps the tail base.
+    Tail,
     Body,
     Markings,
     Mane,
@@ -254,6 +266,26 @@ impl TackStyle {
     }
 }
 
+impl TailStyle {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Plain => "plain",
+            Self::Flowers => "flowers",
+            Self::Braided => "braided",
+            Self::Ribbons => "ribbons",
+        }
+    }
+
+    pub fn display(self) -> &'static str {
+        match self {
+            Self::Plain => "Plain",
+            Self::Flowers => "Flowers",
+            Self::Braided => "Braided",
+            Self::Ribbons => "Ribbons",
+        }
+    }
+}
+
 pub const ALL_COAT_COLOURS: &[CoatColour] = &[
     CoatColour::Chestnut,
     CoatColour::Black,
@@ -284,6 +316,13 @@ pub const ALL_TACK_STYLES: &[TackStyle] = &[
     TackStyle::EnglishSaddle,
     TackStyle::Blanket,
     TackStyle::Bridle,
+];
+
+pub const ALL_TAIL_STYLES: &[TailStyle] = &[
+    TailStyle::Plain,
+    TailStyle::Flowers,
+    TailStyle::Braided,
+    TailStyle::Ribbons,
 ];
 
 impl SkinTone {
@@ -552,6 +591,7 @@ pub struct HorseConfig {
     pub coat_style: CoatStyle,
     pub mane: ManeStyle,
     pub tack: TackStyle,
+    pub tail: TailStyle,
 }
 
 /// Generate a complete SVG document string for a horse.
@@ -559,7 +599,8 @@ pub fn generate_horse_svg(config: &HorseConfig) -> String {
     let mut body = String::with_capacity(4096);
     body.push_str(&horse_defs(config));
 
-    // Layer order: body → markings → mane → body-front (ear/face) → tack
+    // Layer order: tail → body → markings → mane → body-front (ear/face) → tack
+    body.push_str(&horse_tail::tail_svg(config.tail));
     body.push_str(&horse_body::body_svg(config.coat_colour));
     body.push_str(&horse_body::markings_svg(
         config.coat_style,
@@ -578,6 +619,7 @@ pub fn generate_horse_layer_svg(config: &HorseConfig, layer: HorseLayer) -> Stri
     body.push_str(&horse_defs(config));
 
     match layer {
+        HorseLayer::Tail => body.push_str(&horse_tail::tail_svg(config.tail)),
         HorseLayer::Body => body.push_str(&horse_body::body_svg(config.coat_colour)),
         HorseLayer::Markings => {
             body.push_str(&horse_body::markings_svg(

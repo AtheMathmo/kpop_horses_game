@@ -10,8 +10,6 @@ use crate::{CoatColour, CoatStyle};
 const HOOF: &str = "#2D1E16";
 /// Detail colour for eye and nostril.
 const DETAIL: &str = "#2D1E16";
-/// Tail colour (matches mane base).
-const TAIL: &str = "#3A0066";
 
 /// Draw the base horse body (side profile facing left).
 ///
@@ -40,12 +38,6 @@ pub fn body_svg(colour: CoatColour) -> String {
     s.push_str(&format!(
         r#"  <path d="M 180,230 C 175,270 175,340 180,350 L 195,350 C 190,310 190,270 195,230 Z" fill="{dark}"/>
   <path d="M 180,350 L 195,350 L 198,365 L 177,365 Z" fill="{HOOF}"/>
-"#
-    ));
-
-    // -- Tail --
-    s.push_str(&format!(
-        r#"  <path d="M 355,160 C 390,160 410,210 395,270 C 380,260 370,220 360,180 Z" fill="{TAIL}"/>
 "#
     ));
 

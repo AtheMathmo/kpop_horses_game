@@ -9,10 +9,10 @@ use std::path::Path;
 
 use face_gen::{
     ALL_COAT_COLOURS, ALL_COAT_STYLES, ALL_EYE_STYLES, ALL_FACE_SHAPES, ALL_HAIR_STYLES,
-    ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SKIN_TONES, ALL_TACK_STYLES, CANVAS_H, CANVAS_W,
-    FaceConfig, FaceLayer, HORSE_H, HORSE_W, HorseConfig, HorseLayer, generate_component_svg,
-    generate_face_svg, generate_horse_layer_svg, generate_layer_svg, has_markings, has_tack,
-    rasterize_svg_to_png,
+    ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SKIN_TONES, ALL_TACK_STYLES, ALL_TAIL_STYLES, CANVAS_H,
+    CANVAS_W, FaceConfig, FaceLayer, HORSE_H, HORSE_W, HorseConfig, HorseLayer,
+    generate_component_svg, generate_face_svg, generate_horse_layer_svg, generate_layer_svg,
+    has_markings, has_tack, rasterize_svg_to_png,
 };
 
 const OUTPUT_DIR: &str = "output";
@@ -381,6 +381,19 @@ fn export_horse_layer_pngs(base: &Path) {
         let svg = generate_horse_layer_svg(&config, HorseLayer::Tack);
         write_layer_png(&dir, style.label(), &svg, png_w, png_h);
         println!("  horse/tack/{}", style.label());
+    }
+
+    // Tail: one per TailStyle
+    let dir = base.join("tail");
+    fs::create_dir_all(&dir).expect("create horse tail dir");
+    for style in ALL_TAIL_STYLES {
+        let config = HorseConfig {
+            tail: *style,
+            ..default_config
+        };
+        let svg = generate_horse_layer_svg(&config, HorseLayer::Tail);
+        write_layer_png(&dir, style.label(), &svg, png_w, png_h);
+        println!("  horse/tail/{}", style.label());
     }
 }
 
