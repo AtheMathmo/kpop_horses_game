@@ -8,10 +8,11 @@ use std::fs;
 use std::path::Path;
 
 use face_gen::{
-    ALL_BRIDLE_STYLES, ALL_COAT_COLOURS, ALL_COAT_STYLES, ALL_EYE_STYLES, ALL_FACE_SHAPES,
-    ALL_HAIR_STYLES, ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SADDLE_STYLES, ALL_SKIN_TONES,
-    ALL_TAIL_STYLES, CANVAS_H, CANVAS_W, FaceConfig, FaceLayer, HORSE_H, HORSE_W, HorseConfig,
-    HorseLayer, generate_component_svg, generate_face_svg, generate_horse_layer_svg,
+    ALL_BRIDLE_STYLES, ALL_COAT_COLOURS, ALL_COAT_STYLES, ALL_DEMON_TYPES, ALL_EYE_STYLES,
+    ALL_FACE_SHAPES, ALL_HAIR_STYLES, ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SADDLE_STYLES,
+    ALL_SKIN_TONES, ALL_TAIL_STYLES, CANVAS_H, CANVAS_W, DEMON_H, DEMON_W, FaceConfig, FaceLayer,
+    HEART_H, HEART_W, HORSE_H, HORSE_W, HorseConfig, HorseLayer, generate_component_svg,
+    generate_demon_svg, generate_face_svg, generate_heart_svg, generate_horse_layer_svg,
     generate_layer_svg, has_bridle, has_markings, has_saddle, rasterize_svg_to_png,
 };
 
@@ -42,7 +43,19 @@ fn main() {
         let horse_base = Path::new(horse_dir);
         export_horse_layer_pngs(horse_base);
 
-        println!("Done! Layers exported to {out_dir}/ and {horse_dir}/");
+        let demon_out = "assets/demons".to_string();
+        let demon_dir = args
+            .iter()
+            .position(|a| a == "--demon-out")
+            .and_then(|i| args.get(i + 1))
+            .unwrap_or(&demon_out);
+        let demon_base = Path::new(demon_dir);
+        export_demon_pngs(demon_base);
+
+        // Export UI icons (hearts) into the demons directory (shared UI assets)
+        export_ui_icons(demon_base);
+
+        println!("Done! Layers exported to {out_dir}/, {horse_dir}/, and {demon_dir}/");
         return;
     }
 
@@ -426,6 +439,35 @@ fn write_layer_png(dir: &Path, name: &str, svg: &str, w: u32, h: u32) {
     if let Some(png) = rasterize_svg_to_png(svg, w, h) {
         fs::write(&png_path, png).expect("write PNG");
     }
+}
+
+/// Export demon sprite PNGs — one per DemonType.
+fn export_demon_pngs(base: &Path) {
+    fs::create_dir_all(base).expect("create demon dir");
+    let png_w = DEMON_W as u32 * PNG_SCALE;
+    let png_h = DEMON_H as u32 * PNG_SCALE;
+
+    for demon_type in ALL_DEMON_TYPES {
+        let svg = generate_demon_svg(*demon_type);
+        write_layer_png(base, demon_type.label(), &svg, png_w, png_h);
+        println!("  demon/{}", demon_type.label());
+    }
+}
+
+/// Export UI icon PNGs (heart_full, heart_empty).
+fn export_ui_icons(base: &Path) {
+    let png_w = HEART_W as u32 * PNG_SCALE;
+    let png_h = HEART_H as u32 * PNG_SCALE;
+
+    // Full heart — neon pink (#FF007F)
+    let svg_full = generate_heart_svg("#FF007F");
+    write_layer_png(base, "heart_full", &svg_full, png_w, png_h);
+    println!("  icon/heart_full");
+
+    // Empty heart — deep violet (#4B0082)
+    let svg_empty = generate_heart_svg("#4B0082");
+    write_layer_png(base, "heart_empty", &svg_empty, png_w, png_h);
+    println!("  icon/heart_empty");
 }
 
 fn write_face(dir: &Path, name: &str, config: &FaceConfig) {

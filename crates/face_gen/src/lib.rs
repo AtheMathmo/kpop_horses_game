@@ -2,6 +2,7 @@
 //!
 //! Generates layered SVG faces from component selections, then rasterizes to PNG.
 
+mod demon;
 mod eyes;
 mod face;
 mod hair;
@@ -12,7 +13,22 @@ mod horse_tail;
 mod mouth;
 mod render;
 
+pub use demon::{ALL_DEMON_TYPES, DEMON_H, DEMON_W, DemonType, generate_demon_svg};
 pub use render::{rasterize_svg, rasterize_svg_to_png};
+
+/// Dimensions for the heart icon.
+pub const HEART_W: f32 = 64.0;
+pub const HEART_H: f32 = 64.0;
+
+/// Generate an SVG heart icon with the given fill colour (hex string like "#FF007F").
+pub fn generate_heart_svg(fill: &str) -> String {
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {HEART_W} {HEART_H}" width="{HEART_W}" height="{HEART_H}">
+  <path d="M32 56 C16 44, 2 34, 2 20 C2 10, 10 2, 20 2 C26 2, 30 6, 32 10 C34 6, 38 2, 44 2 C54 2, 62 10, 62 20 C62 34, 48 44, 32 56Z"
+        fill="{fill}" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>"##
+    )
+}
 
 /// Canvas dimensions matching the character preview area.
 pub const CANVAS_W: f32 = 300.0;

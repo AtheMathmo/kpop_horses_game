@@ -3,12 +3,14 @@
 use bevy::prelude::*;
 
 use crate::assets::Palette;
+use bevy::state::state_scoped::DespawnOnExit;
+
+use crate::game::{GameState, HorseSelections, horse_layer_asset_path, horse_layer_visible};
 use face_gen::{
     ALL_BRIDLE_STYLES, ALL_COAT_COLOURS, ALL_COAT_STYLES, ALL_EYE_STYLES, ALL_FACE_SHAPES,
     ALL_HAIR_STYLES, ALL_MANE_STYLES, ALL_MOUTH_STYLES, ALL_SADDLE_STYLES, ALL_SKIN_TONES,
     ALL_TAIL_STYLES, BridleStyle, CoatColour, CoatStyle, EyeStyle, FaceLayer, FaceShape, HairStyle,
-    HorseLayer, ManeStyle, MouthStyle, SaddleStyle, SkinTone, TailStyle, has_bridle, has_markings,
-    has_saddle,
+    HorseLayer, ManeStyle, MouthStyle, SaddleStyle, SkinTone, TailStyle,
 };
 
 // ---------------------------------------------------------------------------
@@ -20,10 +22,12 @@ pub struct CharacterCreatorPlugin;
 impl Plugin for CharacterCreatorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CharacterSelections>()
-            .init_resource::<HorseSelections>()
             .init_resource::<ActiveCategory>()
             .init_resource::<ActiveTab>()
-            .add_systems(Startup, (spawn_ui, spawn_face_sprites, spawn_horse_sprites))
+            .add_systems(
+                OnEnter(GameState::CharacterCreator),
+                (spawn_ui, spawn_face_sprites, spawn_horse_sprites),
+            )
             .add_systems(
                 Update,
                 (
@@ -34,7 +38,8 @@ impl Plugin for CharacterCreatorPlugin {
                     update_horse_preview,
                     update_preview_visibility,
                     rebuild_categories_on_tab_change,
-                ),
+                )
+                    .run_if(in_state(GameState::CharacterCreator)),
             );
     }
 }
@@ -203,17 +208,6 @@ pub struct CharacterSelections {
     pub skin: SkinTone,
 }
 
-/// Current horse customisation selections.
-#[derive(Resource, Debug, Clone, Default)]
-pub struct HorseSelections {
-    pub coat_colour: CoatColour,
-    pub coat_style: CoatStyle,
-    pub mane: ManeStyle,
-    pub saddle: SaddleStyle,
-    pub bridle: BridleStyle,
-    pub tail: TailStyle,
-}
-
 /// Top-level tab: Character or Horse.
 #[derive(Resource, Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ActiveTab {
@@ -323,15 +317,18 @@ struct CategoryPanel;
 
 fn spawn_ui(mut commands: Commands) {
     commands
-        .spawn(Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::SpaceBetween,
-            padding: UiRect::all(Val::Px(20.0)),
-            ..default()
-        })
+        .spawn((
+            DespawnOnExit(GameState::CharacterCreator),
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::SpaceBetween,
+                padding: UiRect::all(Val::Px(20.0)),
+                ..default()
+            },
+        ))
         .with_children(|root| {
             // Title
             root.spawn((
@@ -613,6 +610,7 @@ fn spawn_face_sprites(
     commands
         .spawn((
             FacePreviewRoot,
+            DespawnOnExit(GameState::CharacterCreator),
             Transform::from_scale(Vec3::splat(SPRITE_SCALE)),
             Visibility::default(),
         ))
@@ -678,17 +676,13 @@ fn spawn_horse_sprites(
     commands
         .spawn((
             HorsePreviewRoot,
+            DespawnOnExit(GameState::CharacterCreator),
             Transform::from_scale(Vec3::splat(SPRITE_SCALE)),
             Visibility::Hidden,
         ))
         .with_children(|root| {
             for (layer, z) in layers {
-                let show = match layer {
-                    HorseLayer::Markings => has_markings(selections.coat_style),
-                    HorseLayer::Saddle => has_saddle(selections.saddle),
-                    HorseLayer::Bridle => has_bridle(selections.bridle),
-                    _ => true,
-                };
+                let show = horse_layer_visible(layer, &selections);
 
                 let mut sprite = Sprite::default();
                 if show {
@@ -707,24 +701,6 @@ fn spawn_horse_sprites(
                 ));
             }
         });
-}
-
-fn horse_layer_asset_path(layer: HorseLayer, selections: &HorseSelections) -> String {
-    match layer {
-        HorseLayer::Tail => format!("horses/tail/{}.png", selections.tail.label()),
-        HorseLayer::Body => format!("horses/body/{}.png", selections.coat_colour.label()),
-        HorseLayer::Markings => format!(
-            "horses/markings/{}_{}.png",
-            selections.coat_style.label(),
-            selections.coat_colour.label()
-        ),
-        HorseLayer::Mane => format!("horses/mane/{}.png", selections.mane.label()),
-        HorseLayer::BodyFront => {
-            format!("horses/body_front/{}.png", selections.coat_colour.label())
-        }
-        HorseLayer::Saddle => format!("horses/saddle/{}.png", selections.saddle.label()),
-        HorseLayer::Bridle => format!("horses/bridle/{}.png", selections.bridle.label()),
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -803,26 +779,8 @@ fn on_next_click(
     }
 }
 
-fn on_done_click(
-    _trigger: On<Pointer<Click>>,
-    selections: Res<CharacterSelections>,
-    horse_sel: Res<HorseSelections>,
-) {
-    info!(
-        "Character ready! Face: {}, Eyes: {}, Hair: {}, Mouth: {}, Skin: {} | \
-         Horse: Coat: {} ({}), Mane: {}, Saddle: {}, Bridle: {}, Tail: {}",
-        selections.face.display(),
-        selections.eyes.display(),
-        selections.hair.display(),
-        selections.mouth.display(),
-        selections.skin.display(),
-        horse_sel.coat_colour.display(),
-        horse_sel.coat_style.display(),
-        horse_sel.mane.display(),
-        horse_sel.saddle.display(),
-        horse_sel.bridle.display(),
-        horse_sel.tail.display(),
-    );
+fn on_done_click(_trigger: On<Pointer<Click>>, mut next: ResMut<NextState<GameState>>) {
+    next.set(GameState::GameSelect);
 }
 
 fn on_button_over(trigger: On<Pointer<Over>>, mut query: Query<&mut BackgroundColor>) {
@@ -996,12 +954,7 @@ fn update_horse_preview(
     }
 
     for (layer, mut sprite, mut vis) in &mut query {
-        let show = match layer.0 {
-            HorseLayer::Markings => has_markings(selections.coat_style),
-            HorseLayer::Saddle => has_saddle(selections.saddle),
-            HorseLayer::Bridle => has_bridle(selections.bridle),
-            _ => true,
-        };
+        let show = horse_layer_visible(layer.0, &selections);
 
         if show {
             *vis = Visibility::Inherited;
